@@ -1,0 +1,46 @@
+system:
+  device: "cuda:0"
+  target_vram_mb: 950
+  peak_guard_buffer_mb: 150
+  enable_cuda: true
+  log_level: "INFO"
+
+audio:
+  backend: "auto"          # auto, pipewire, wasapi, sounddevice
+  sample_rate: 16000
+  chunk_duration_ms: 250   # 250ms chunks for low latency
+  channels: 1
+  vad:
+    enabled: true
+    threshold: 0.5
+    min_speech_duration_ms: 100
+    min_silence_duration_ms: 200
+  asr:
+    model_size: "small"    # tiny, base, small
+    compute_type: "int8_float16" # int8 quantization for <400MB VRAM
+    beam_size: 1
+    max_vram_mb: 400
+    language: "auto"
+  translation:
+    engine: "local"        # local (ctranslate2) or cloud (groq/deepl)
+    target_language: "vi"
+
+visual:
+  backend: "auto"          # auto, mss, dxgi, pipewire
+  fps_limit: 10
+  frame_diff_threshold: 0.05 # Skip if screen motion is less than 5%
+  ocr:
+    enabled: true
+    det_model: "dbnet"
+    rec_model: "svtr"
+    max_vram_mb: 300
+    confidence_threshold: 0.6
+  cache:
+    max_entries: 2000      # LRU Cache for repetitive UI terms
+
+ui:
+  fps: 60
+  click_through: true
+  font_size: 18
+  auto_hide_seconds: 3.0
+  collision_detection: true

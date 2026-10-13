@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "omni-translate"
+version = "0.1.0"
+description = "Real-time Multimodal Live Translator (Audio & Screen OCR) with Low Latency and Strict VRAM Cap"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "pydantic>=2.5.0",
+    "pyyaml>=6.0",
+    "loguru>=0.7.2",
+    "numpy>=1.24.0,<2.0.0",
+    "pynvml>=11.5.0",
+    "sounddevice>=0.4.6",
+]
+
+[project.optional-dependencies]
+ai = [
+    "torch>=2.2.0",
+    "torchaudio>=2.2.0",
+    "faster-whisper>=1.0.0",
+    "ctranslate2>=4.0.0",
+    "onnxruntime-gpu>=1.17.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
