@@ -2,11 +2,20 @@
 """OmniTranslate: Main Application Entry Point."""
 
 import argparse
+import os
+import signal
 import sys
 import threading
 import time
 from pathlib import Path
 from loguru import logger
+
+if sys.platform.startswith("linux"):
+    # Ensure XCB/XWayland platform on Linux to enable hardware XShape click-through
+    os.environ["QT_QPA_PLATFORM"] = "xcb"
+
+# Cleanly handle Ctrl+C in terminal
+signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -23,9 +32,16 @@ from src.core.translator import HybridTranslator
 def run_demo_overlay(config):
     """Run interactive demonstration of Transparent Overlay and Collision Resolver."""
     from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtCore import QTimer
     from src.ui.overlay import TransparentOverlayWindow
 
     app = QApplication(sys.argv)
+
+    # Timer to allow Python interpreter to process Ctrl+C signals
+    sig_timer = QTimer()
+    sig_timer.start(250)
+    sig_timer.timeout.connect(lambda: None)
+
     overlay = TransparentOverlayWindow(
         font_size=config.ui.font_size,
         subtitle_timeout_sec=config.ui.auto_hide_seconds,

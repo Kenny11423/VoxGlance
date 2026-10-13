@@ -52,6 +52,7 @@ class TransparentOverlayWindow(QMainWindow):
                     "match:title ^(OmniTranslate Overlay)$, no_shadow on",
                     "match:title ^(OmniTranslate Overlay)$, no_anim on",
                     "match:title ^(OmniTranslate Overlay)$, no_initial_focus on",
+                    "match:title ^(OmniTranslate Overlay)$, no_focus on",
                     "match:title ^(OmniTranslate Overlay)$, move 0 0",
                     "match:title ^(OmniTranslate Overlay)$, size 100% 100%",
                 ]:
@@ -66,6 +67,7 @@ class TransparentOverlayWindow(QMainWindow):
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
             | Qt.WindowType.Tool
+            | Qt.WindowType.WindowDoesNotAcceptFocus
         )
         self.setWindowFlags(flags)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
@@ -76,6 +78,51 @@ class TransparentOverlayWindow(QMainWindow):
         screen = QApplication.primaryScreen()
         if screen:
             self.setGeometry(screen.geometry())
+
+    def _enable_click_through(self) -> None:
+        """Hardware-level click-through enabling for Windows (Win32) and Linux (XShape)."""
+        import sys
+
+        handle = self.windowHandle()
+        if not handle:
+            return
+
+        # 1. Windows: WS_EX_TRANSPARENT | WS_EX_LAYERED
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                hwnd = int(handle.winId())
+                GWL_EXSTYLE = -20
+                WS_EX_TRANSPARENT = 0x00000020
+                WS_EX_LAYERED = 0x00080000
+                user32 = ctypes.windll.user32
+                style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+                user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style | WS_EX_TRANSPARENT | WS_EX_LAYERED)
+            except Exception:
+                pass
+
+        # 2. Linux (X11 / XWayland): XShapeCombineRectangles with ShapeInput
+        elif sys.platform.startswith("linux"):
+            try:
+                from PyQt6.QtWidgets import QApplication
+                app = QApplication.instance()
+                if app and app.platformName() == "xcb":
+                    import ctypes
+                    x11 = ctypes.cdll.LoadLibrary("libX11.so.6")
+                    xext = ctypes.cdll.LoadLibrary("libXext.so.6")
+                    display = x11.XOpenDisplay(None)
+                    if display:
+                        win_id = int(handle.winId())
+                        # ShapeInput = 2, ShapeSet = 0
+                        xext.XShapeCombineRectangles(display, win_id, 2, 0, 0, None, 0, 0, 0)
+                        x11.XFlush(display)
+                        x11.XCloseDisplay(display)
+            except Exception:
+                pass
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        QTimer.singleShot(100, self._enable_click_through)
 
     def _init_timers(self) -> None:
         """Periodic refresh timer to ensure smooth 60 FPS repaint loop."""
