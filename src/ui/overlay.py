@@ -31,8 +31,34 @@ class TransparentOverlayWindow(QMainWindow):
         self.subtitle_updated_time: float = 0.0
         self.ocr_boxes: List[VisualBoundingBox] = []
 
+        self.setWindowTitle("OmniTranslate Overlay")
+        self.setStyleSheet("background: transparent;")
+        self._apply_hyprland_rules()
         self._init_window_flags()
         self._init_timers()
+
+    def _apply_hyprland_rules(self) -> None:
+        """Register dynamic Hyprland window rules to eliminate blur, shadow, and borders."""
+        import os
+        import shutil
+        import subprocess
+
+        if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") or "Hyprland" in os.environ.get("XDG_CURRENT_DESKTOP", ""):
+            if shutil.which("hyprctl"):
+                for rule in [
+                    "match:title ^(OmniTranslate Overlay)$, float on",
+                    "match:title ^(OmniTranslate Overlay)$, pin on",
+                    "match:title ^(OmniTranslate Overlay)$, no_blur on",
+                    "match:title ^(OmniTranslate Overlay)$, no_shadow on",
+                    "match:title ^(OmniTranslate Overlay)$, no_anim on",
+                    "match:title ^(OmniTranslate Overlay)$, no_initial_focus on",
+                    "match:title ^(OmniTranslate Overlay)$, move 0 0",
+                    "match:title ^(OmniTranslate Overlay)$, size 100% 100%",
+                ]:
+                    try:
+                        subprocess.run(["hyprctl", "keyword", "windowrule", rule], capture_output=True, timeout=1.0)
+                    except Exception:
+                        pass
 
     def _init_window_flags(self) -> None:
         """Configure Qt window attributes for transparent click-through display."""
@@ -85,6 +111,10 @@ class TransparentOverlayWindow(QMainWindow):
     def paintEvent(self, event) -> None:
         """Render subtitles and OCR overlays using QPainter."""
         painter = QPainter(self)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+        painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
 
