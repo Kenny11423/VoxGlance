@@ -126,8 +126,10 @@ class FasterWhisperEngine:
                 beam_size=beam_size,
                 temperature=0.0,
                 condition_on_previous_text=False,
-                no_speech_threshold=0.85,
-                log_prob_threshold=-1.0,
+                vad_filter=True,
+                vad_parameters=dict(min_silence_duration_ms=350),
+                no_speech_threshold=0.6,
+                log_prob_threshold=-0.8,
                 compression_ratio_threshold=2.4,
                 repetition_penalty=1.2,
                 no_repeat_ngram_size=3,
@@ -136,7 +138,9 @@ class FasterWhisperEngine:
 
             tokens = []
             for seg in segments:
-                if getattr(seg, "no_speech_prob", 0.0) > 0.85:
+                if getattr(seg, "no_speech_prob", 0.0) > 0.6:
+                    continue
+                if getattr(seg, "avg_logprob", 0.0) < -0.9:
                     continue
                 if getattr(seg, "compression_ratio", 1.0) > 2.4:
                     continue

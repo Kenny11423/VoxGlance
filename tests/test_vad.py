@@ -42,9 +42,14 @@ def test_vad_silence_detection():
 def test_vad_speech_detection():
     vad = SileroVAD()
 
-    # Generate synthetic speech-like signal (sine wave at 300Hz with audible amplitude)
-    t = np.linspace(0, 0.1, 1600, endpoint=False)
-    synthetic_speech = 0.2 * np.sin(2 * np.pi * 300 * t).astype(np.float32)
+    # Generate synthetic speech-like signal (fundamental frequency with vocal formants)
+    t = np.linspace(0, 0.25, 4000, endpoint=False)
+    synthetic_speech = (
+        0.2 * np.sin(2 * np.pi * 130 * t)
+        + 0.15 * np.sin(2 * np.pi * 260 * t)
+        + 0.1 * np.sin(2 * np.pi * 390 * t)
+        + 0.08 * np.sin(2 * np.pi * 750 * t)
+    ).astype(np.float32)
 
     result = vad.is_speech_chunk(synthetic_speech)
     assert result.is_speech is True
