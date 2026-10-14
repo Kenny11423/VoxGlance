@@ -42,7 +42,11 @@ def test_audio_pipeline_stream_and_revise():
     pipeline._process_chunk(speech_chunk)
     assert len(pipeline._current_utterance) == 2
 
-    # 3. Silence chunk (trigger commit)
+    # 3. First silence chunk (should hold buffer to avoid premature cut)
+    pipeline._process_chunk(silence_chunk)
+    assert len(pipeline._current_utterance) == 2
+
+    # 4. Second silence chunk (meets min_silence_chunks=2, triggers commit)
     pipeline._process_chunk(silence_chunk)
     assert len(pipeline._current_utterance) == 0  # Committed and cleared
 
