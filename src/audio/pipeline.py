@@ -1,6 +1,6 @@
-"""Audio Streaming Pipeline implementing Stream-and-Revise for YouTube-like Live Captions."""
-
+import concurrent.futures
 import os
+import queue
 import subprocess
 import sys
 import threading
@@ -8,7 +8,6 @@ import time
 from typing import Callable, Optional
 import numpy as np
 from loguru import logger
-
 
 from src.audio.capture import AudioCaptureManager, AudioRingBuffer
 from src.audio.vad import SileroVAD
@@ -18,7 +17,7 @@ from src.core.translator import HybridTranslator
 
 
 class AudioStreamingPipeline:
-    """End-to-End Realtime Audio Streaming Pipeline with Stream-and-Revise."""
+    """End-to-End Realtime Audio Streaming Pipeline with Non-Blocking Stream-and-Revise."""
 
     def __init__(
         self,
@@ -42,8 +41,12 @@ class AudioStreamingPipeline:
         self.min_silence_chunks = min_silence_chunks
 
         self.ring_buffer = AudioRingBuffer(sample_rate=sample_rate, buffer_duration_sec=10.0)
+        self._audio_queue: queue.Queue = queue.Queue(maxsize=16)  # Max 4 seconds of buffer
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+
         self._is_running = False
-        self._worker_thread: Optional[threading.Thread] = None
+        self._capture_thread: Optional[threading.Thread] = None
+        self._process_thread: Optional[threading.Thread] = None
         self._capture_proc: Optional[subprocess.Popen] = None
         self._capture_manager: Optional[AudioCaptureManager] = None
 
@@ -71,10 +74,13 @@ class AudioStreamingPipeline:
 
         self._is_running = True
 
+        # Start background processing consumer thread
+        self._process_thread = threading.Thread(target=self._processing_loop, daemon=True)
+        self._process_thread.start()
+
         # Choose capture backend:
         # If source is 'system' or 'auto' on Linux, use PipeWire loopback capture
         if self.source in ["system", "auto"] and sys.platform.startswith("linux"):
-            # Check if pw-record is present
             import shutil
             if shutil.which("pw-record"):
                 target = "@DEFAULT_MONITOR@"
@@ -92,10 +98,10 @@ class AudioStreamingPipeline:
                         cmd,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.DEVNULL,
-                        bufsize=self.chunk_samples * 4 * 10,
+                        bufsize=self.chunk_samples * 4 * 4,
                     )
-                    self._worker_thread = threading.Thread(target=self._pipewire_loop, daemon=True)
-                    self._worker_thread.start()
+                    self._capture_thread = threading.Thread(target=self._pipewire_loop, daemon=True)
+                    self._capture_thread.start()
                     return True
                 except Exception as e:
                     logger.warning(f"Failed to start pw-record: {e}. Falling back to sounddevice mic.")
@@ -104,27 +110,35 @@ class AudioStreamingPipeline:
         logger.info("Using sounddevice microphone capture.")
         self._capture_manager = AudioCaptureManager(sample_rate=self.sample_rate, chunk_ms=self.chunk_ms)
         if self._capture_manager.start_stream():
-            self._worker_thread = threading.Thread(target=self._sounddevice_loop, daemon=True)
-            self._worker_thread.start()
+            self._capture_thread = threading.Thread(target=self._sounddevice_loop, daemon=True)
+            self._capture_thread.start()
             return True
 
         self._is_running = False
         return False
 
     def _pipewire_loop(self) -> None:
-        """Read 16kHz float32 audio chunks directly from pw-record stdout."""
+        """Fast non-blocking read from pw-record stdout into real-time audio queue."""
         bytes_per_chunk = self.chunk_samples * 4  # 4 bytes per float32
 
         while self._is_running and self._capture_proc and self._capture_proc.stdout:
             try:
                 raw_bytes = self._capture_proc.stdout.read(bytes_per_chunk)
                 if not raw_bytes or len(raw_bytes) < bytes_per_chunk:
-                    time.sleep(0.01)
+                    time.sleep(0.005)
                     continue
 
                 chunk = np.frombuffer(raw_bytes, dtype=np.float32)
                 chunk = np.nan_to_num(chunk, nan=0.0, posinf=0.0, neginf=0.0)
-                self._process_chunk(chunk)
+
+                # Keep queue strictly real-time: drop stale audio if consumer is busy
+                if self._audio_queue.full():
+                    try:
+                        self._audio_queue.get_nowait()
+                    except Exception:
+                        pass
+
+                self._audio_queue.put(chunk)
             except Exception as e:
                 logger.error(f"Error in pipewire read loop: {e}")
                 break
@@ -135,10 +149,43 @@ class AudioStreamingPipeline:
             if len(self._capture_manager.ring_buffer) >= self.chunk_samples:
                 chunk = self._capture_manager.ring_buffer.get_latest(self.chunk_samples)
                 chunk = np.nan_to_num(chunk, nan=0.0, posinf=0.0, neginf=0.0)
-                self._process_chunk(chunk)
+                if self._audio_queue.full():
+                    try:
+                        self._audio_queue.get_nowait()
+                    except Exception:
+                        pass
+                self._audio_queue.put(chunk)
             else:
                 time.sleep(self.chunk_ms / 2000.0)
 
+    def _processing_loop(self) -> None:
+        """Dedicated consumer thread running VAD and ASR without blocking capture."""
+        while self._is_running:
+            try:
+                chunk = self._audio_queue.get(timeout=0.1)
+                self._process_chunk(chunk)
+            except queue.Empty:
+                continue
+            except Exception as e:
+                logger.error(f"Error in audio processing loop: {e}")
+
+    def _async_translate_and_commit(self, raw_text: str, duration_s: float) -> None:
+        """Asynchronously translate committed sentence into natural Vietnamese."""
+        try:
+            translated = self.translator.translate(raw_text, source_lang="en", target_lang="vi")
+            if translated:
+                logger.info(f"✅ [Commit]: {raw_text} -> {translated}")
+                if self.on_subtitle:
+                    self.on_subtitle(
+                        SubtitleToken(
+                            text=translated,
+                            is_partial=False,
+                            start_time=0.0,
+                            end_time=duration_s,
+                        )
+                    )
+        except Exception as e:
+            logger.warning(f"Async translation error: {e}")
 
     def _process_chunk(self, chunk: np.ndarray) -> None:
         """Core Stream-and-Revise state machine."""
@@ -149,20 +196,21 @@ class AudioStreamingPipeline:
             self._current_utterance.append(chunk)
             self._silence_chunks = 0
 
-            # Generate partial token every 400ms if we have at least 500ms of audio
+            # Generate partial token every 400ms if we have at least 500ms of speech
             utterance_duration_s = (len(self._current_utterance) * self.chunk_samples) / self.sample_rate
             if utterance_duration_s >= 0.5 and (now - self._last_partial_time >= 0.4):
                 audio_data = np.concatenate(self._current_utterance)
                 tokens = self.asr.transcribe(audio_data)
                 if tokens:
                     raw_text = " ".join(t.text for t in tokens).strip()
-                    translated = self.translator.translate(raw_text, source_lang="en", target_lang="vi")
-                    if translated:
-                        logger.info(f"🎙️ [Live]: {raw_text} -> {translated}")
+                    if raw_text:
+                        # Instant display: check LRU cache or show live recognized speech immediately
+                        cached = self.translator.cache.get(raw_text)
+                        display_text = cached if cached else f"🎙️ {raw_text}"
                         if self.on_subtitle:
                             self.on_subtitle(
                                 SubtitleToken(
-                                    text=translated,
+                                    text=display_text,
                                     is_partial=True,
                                     start_time=0.0,
                                     end_time=utterance_duration_s,
@@ -180,18 +228,14 @@ class AudioStreamingPipeline:
                     if tokens:
                         raw_text = " ".join(t.text for t in tokens).strip()
                         if raw_text:
-                            translated = self.translator.translate(raw_text, source_lang="en", target_lang="vi")
-                            if translated:
-                                logger.info(f"✅ [Commit]: {raw_text} -> {translated}")
-                                if self.on_subtitle:
-                                    self.on_subtitle(
-                                        SubtitleToken(
-                                            text=translated,
-                                            is_partial=False,
-                                            start_time=0.0,
-                                            end_time=utterance_duration_s,
-                                        )
-                                    )
+                            # Submit translation to background thread so audio capture NEVER blocks
+                            if self._is_running and hasattr(self, "_executor") and self._executor:
+                                self._executor.submit(
+                                    self._async_translate_and_commit, raw_text, utterance_duration_s
+                                )
+                            else:
+                                self._async_translate_and_commit(raw_text, utterance_duration_s)
+
                     # Reset buffer for next sentence
                     self._current_utterance.clear()
                     self._silence_chunks = 0
@@ -211,4 +255,11 @@ class AudioStreamingPipeline:
             self._capture_manager.stop_stream()
             self._capture_manager = None
 
+        if hasattr(self, "_executor") and self._executor:
+            try:
+                self._executor.shutdown(wait=False)
+            except Exception:
+                pass
+
         logger.info("AudioStreamingPipeline stopped.")
+

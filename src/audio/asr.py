@@ -98,14 +98,25 @@ class FasterWhisperEngine:
                 clean_audio,
                 language=language if language != "auto" else None,
                 beam_size=beam_size,
-                word_timestamps=True,
+                temperature=0.0,
+                condition_on_previous_text=False,
+                no_speech_threshold=0.6,
+                log_prob_threshold=-0.8,
+                word_timestamps=False,
             )
 
             tokens = []
             for seg in segments:
+                if getattr(seg, "no_speech_prob", 0.0) > 0.6:
+                    continue
+                if getattr(seg, "avg_logprob", 0.0) < -1.0:
+                    continue
+                clean_seg_text = seg.text.strip()
+                if not clean_seg_text:
+                    continue
                 tokens.append(
                     SubtitleToken(
-                        text=seg.text.strip(),
+                        text=clean_seg_text,
                         is_partial=False,
                         start_time=seg.start,
                         end_time=seg.end,
