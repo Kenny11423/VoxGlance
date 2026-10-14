@@ -26,7 +26,7 @@ class MSSScreenCapture(BaseScreenCapture):
     def __init__(self):
         try:
             import mss
-            self._sct = mss.mss()
+            self._sct = mss.MSS() if hasattr(mss, "MSS") else mss.mss()
             logger.info("MSSScreenCapture initialized successfully.")
         except Exception as e:
             logger.error(f"Failed to initialize mss: {e}")

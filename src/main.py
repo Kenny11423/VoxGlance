@@ -91,32 +91,80 @@ def run_demo_overlay(config):
     sys.exit(app.exec())
 
 
+def run_live_mode(config, audio_source: str = "auto", enable_ocr: bool = True):
+    """Run full live multimodal translation with audio capture, OCR, and transparent overlay."""
+    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtCore import QTimer
+    from src.ui.overlay import TransparentOverlayWindow
+    from src.core.orchestrator import OmniTranslateOrchestrator
+
+    app = QApplication(sys.argv)
+
+    sig_timer = QTimer()
+    sig_timer.start(250)
+    sig_timer.timeout.connect(lambda: None)
+
+    overlay = TransparentOverlayWindow(
+        font_size=config.ui.font_size,
+        subtitle_timeout_sec=config.ui.auto_hide_seconds,
+        enable_collision_check=config.ui.collision_detection,
+    )
+    overlay.show()
+
+    orchestrator = OmniTranslateOrchestrator(
+        config=config,
+        overlay=overlay,
+        audio_source=audio_source,
+        enable_ocr=enable_ocr,
+    )
+    orchestrator.start()
+
+    logger.info(f"OmniTranslate LIVE mode active (Audio: {audio_source}, OCR: {enable_ocr}). Press Ctrl+C to exit.")
+
+    try:
+        app.exec()
+    finally:
+        orchestrator.stop()
+
+
 def main():
-    parser = argparse.ArgumentParser(description="OmniTranslate Desktop Application")
-    parser.add_argument("--mode", choices=["demo", "cli", "overlay"], default="demo", help="Execution mode")
+    parser = argparse.ArgumentParser(description="OmniTranslate: Real-time Multimodal Live Translator")
+    parser.add_argument("--mode", choices=["live", "demo", "cli", "overlay"], default="live", help="Execution mode (default: live)")
+    parser.add_argument("--source", choices=["auto", "system", "mic"], default="auto", help="Audio source (system loopback, mic, or auto)")
+    parser.add_argument("--no-ocr", action="store_true", help="Disable on-screen OCR capture")
     parser.add_argument("--config", default=None, help="Path to config YAML")
     args = parser.parse_args()
 
     config = load_config(args.config)
-    logger.info(f"Loaded OmniTranslate config. Target VRAM: {config.system.target_vram_mb}MB")
+    logger.info(f"Loaded OmniTranslate config. Target VRAM Cap: {config.system.target_vram_mb}MB")
 
     memory = MemoryController(
         target_vram_mb=config.system.target_vram_mb,
         peak_guard_buffer_mb=config.system.peak_guard_buffer_mb,
     )
     vram_status = memory.get_vram_info()
-    logger.info(f"Current VRAM: {vram_status.used_mb}MB / {config.system.target_vram_mb}MB (Status: {'SAFE' if vram_status.is_safe else 'ALERT'})")
+    logger.info(f"Current VRAM: {vram_status.used_mb:.1f}MB / {config.system.target_vram_mb}MB (Status: {'SAFE' if vram_status.is_safe else 'ALERT'})")
 
-    if args.mode in ["demo", "overlay"]:
+    if args.mode == "live":
+        run_live_mode(config, audio_source=args.source, enable_ocr=not args.no_ocr)
+    elif args.mode in ["demo", "overlay"]:
         run_demo_overlay(config)
     else:
         logger.info("CLI mode started. Listening to audio stream...")
+        orchestrator = OmniTranslateOrchestrator(
+            config=config,
+            overlay=None,
+            audio_source=args.source,
+            enable_ocr=not args.no_ocr,
+        )
+        orchestrator.start()
         try:
             while True:
                 time.sleep(1.0)
         except KeyboardInterrupt:
             logger.info("Application terminated by user.")
         finally:
+            orchestrator.stop()
             memory.shutdown()
 
 
