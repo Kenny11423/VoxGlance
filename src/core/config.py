@@ -68,7 +68,7 @@ class UiConfig(BaseModel):
     fps: int = 60
     click_through: bool = True
     font_size: int = 18
-    auto_hide_seconds: float = 3.0
+    auto_hide_seconds: float = 7.0
     collision_detection: bool = True
 
 

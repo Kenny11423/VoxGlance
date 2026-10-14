@@ -16,7 +16,7 @@ class TransparentOverlayWindow(QMainWindow):
     def __init__(
         self,
         font_size: int = 18,
-        subtitle_timeout_sec: float = 4.0,
+        subtitle_timeout_sec: float = 8.0,
         enable_collision_check: bool = True,
     ):
         super().__init__()
@@ -25,10 +25,18 @@ class TransparentOverlayWindow(QMainWindow):
         self.enable_collision_check = enable_collision_check
         self.resolver = CollisionResolver()
 
-        # State
+        # 2-Line Roll-Up Subtitle State (preserves previous sentence for reading)
         self.current_subtitle: str = ""
         self.is_partial: bool = False
         self.subtitle_updated_time: float = 0.0
+
+        self.prev_subtitle: str = ""
+        self.prev_updated_time: float = 0.0
+        self.committed_subtitle: str = ""
+        self.committed_updated_time: float = 0.0
+        self.partial_subtitle: str = ""
+        self.partial_updated_time: float = 0.0
+
         self.ocr_boxes: List[VisualBoundingBox] = []
 
         self.setWindowTitle("OmniTranslate Overlay")
@@ -131,23 +139,58 @@ class TransparentOverlayWindow(QMainWindow):
         self.render_timer.start(16)  # ~60 FPS (16.6ms)
 
     def _check_timeouts_and_repaint(self) -> None:
-        # Auto-clear subtitle if silent for more than subtitle_timeout_sec
-        if self.current_subtitle and (time.time() - self.subtitle_updated_time > self.subtitle_timeout_sec):
-            self.current_subtitle = ""
-            self.update()
+        now = time.time()
+        changed = False
+
+        # Expire previous committed subtitle after timeout
+        if self.prev_subtitle and (now - self.prev_updated_time > self.subtitle_timeout_sec):
+            self.prev_subtitle = ""
+            changed = True
+
+        # Expire latest committed subtitle after timeout
+        if self.committed_subtitle and (now - self.committed_updated_time > self.subtitle_timeout_sec):
+            self.committed_subtitle = ""
+            changed = True
+
+        # Expire partial streaming subtitle if silence for 3s
+        if self.partial_subtitle and (now - self.partial_updated_time > 3.0):
+            self.partial_subtitle = ""
+            changed = True
+
+        if not self.prev_subtitle and not self.committed_subtitle and not self.partial_subtitle:
+            if self.current_subtitle:
+                self.current_subtitle = ""
+                changed = True
 
         # Auto-expire OCR boxes older than 3 seconds
-        now = time.time()
         active_boxes = [b for b in self.ocr_boxes if (now - b.timestamp) < 3.0]
         if len(active_boxes) != len(self.ocr_boxes):
             self.ocr_boxes = active_boxes
+            changed = True
+
+        if changed:
             self.update()
 
     def update_subtitle(self, text: str, is_partial: bool = False) -> None:
-        """Set new live subtitle tokens and trigger redraw."""
+        """Set new live subtitle tokens with 2-line roll-up retention."""
+        now = time.time()
+        self.subtitle_updated_time = now
         self.current_subtitle = text
         self.is_partial = is_partial
-        self.subtitle_updated_time = time.time()
+
+        if is_partial:
+            self.partial_subtitle = text
+            self.partial_updated_time = now
+        else:
+            # Full sentence committed: roll previous sentence to line 1 so user has time to read
+            if self.committed_subtitle and self.committed_subtitle != text:
+                self.prev_subtitle = self.committed_subtitle
+                self.prev_updated_time = self.committed_updated_time
+
+            self.committed_subtitle = text
+            self.committed_updated_time = now
+            self.partial_subtitle = ""  # Sentence ended, clear partial
+
         self.update()
 
     def update_ocr_boxes(self, boxes: List[VisualBoundingBox]) -> None:
@@ -172,8 +215,8 @@ class TransparentOverlayWindow(QMainWindow):
         for box in self.ocr_boxes:
             self._draw_ocr_box(painter, box)
 
-        # 2. Render Live Audio Subtitle
-        if self.current_subtitle:
+        # 2. Render Live Audio Subtitles (2-Line Roll-Up)
+        if self.prev_subtitle or self.committed_subtitle or self.partial_subtitle or self.current_subtitle:
             self._draw_subtitle(painter, screen_w, screen_h)
 
         painter.end()
@@ -183,27 +226,65 @@ class TransparentOverlayWindow(QMainWindow):
         font = QFont("Sans-Serif", 13, QFont.Weight.Bold)
         painter.setFont(font)
 
-        # Background badge
         bg_rect = QRect(box.x, box.y, max(box.width, 100), max(box.height, 28))
         painter.setBrush(QBrush(QColor(15, 23, 42, 220)))  # Slate 900 semi-transparent
         painter.setPen(QPen(QColor(56, 189, 248, 200), 1.5))  # Cyan border
         painter.drawRoundedRect(bg_rect, 4, 4)
 
-        # Text
         painter.setPen(QColor(255, 255, 255))
         painter.drawText(bg_rect, Qt.AlignmentFlag.AlignCenter, box.translated_text)
 
     def _draw_subtitle(self, painter: QPainter, screen_w: int, screen_h: int) -> None:
-        """Draw modern streaming subtitle pill at bottom or top (if collision)."""
-        font = QFont("Sans-Serif", self.font_size, QFont.Weight.Bold)
-        painter.setFont(font)
-
-        metrics = painter.fontMetrics()
+        """Draw modern streaming subtitle pill supporting 2-Line Roll-Up."""
+        now = time.time()
         wrap_flags = int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap)
-        max_w = int(screen_w * 0.75)
-        text_bound = metrics.boundingRect(QRect(0, 0, max_w, 2000), wrap_flags, self.current_subtitle)
-        sub_w = min(max(text_bound.width() + 40, 300), max_w)
-        sub_h = text_bound.height() + 24
+        max_w = int(screen_w * 0.78)
+
+        # Assemble active lines:
+        lines = []
+        # Line 1: Previous committed sentence (stays visible for easy reading)
+        if self.prev_subtitle and (now - self.prev_updated_time <= self.subtitle_timeout_sec):
+            lines.append({
+                "text": self.prev_subtitle,
+                "is_history": True,
+                "is_partial": False,
+            })
+
+        # Line 2: Current active sentence (committed or live partial stream)
+        current_text = self.partial_subtitle if self.partial_subtitle else self.committed_subtitle
+        if not current_text and self.current_subtitle:
+            current_text = self.current_subtitle
+
+        if current_text and (not lines or lines[0]["text"] != current_text):
+            lines.append({
+                "text": current_text,
+                "is_history": False,
+                "is_partial": bool(self.partial_subtitle),
+            })
+
+        if not lines:
+            return
+
+        # Calculate bounding dimensions
+        font_main = QFont("Sans-Serif", self.font_size, QFont.Weight.Bold)
+        font_hist = QFont("Sans-Serif", max(13, self.font_size - 2), QFont.Weight.Medium)
+
+        total_h = 20
+        max_line_w = 280
+
+        line_layouts = []
+        for line in lines:
+            f = font_hist if line["is_history"] else font_main
+            painter.setFont(f)
+            m = painter.fontMetrics()
+            bound = m.boundingRect(QRect(0, 0, max_w - 40, 2000), wrap_flags, line["text"])
+            line_layouts.append((line, f, bound.height()))
+            total_h += bound.height() + 8
+            if bound.width() + 48 > max_line_w:
+                max_line_w = min(bound.width() + 48, max_w)
+
+        sub_w = max_line_w
+        sub_h = total_h
 
         # Compute position with Collision Resolver
         if self.enable_collision_check:
@@ -212,27 +293,41 @@ class TransparentOverlayWindow(QMainWindow):
             )
         else:
             sub_x = (screen_w - sub_w) // 2
-            sub_y = int(screen_h * 0.85)
+            sub_y = int(screen_h * 0.85) - (sub_h - 40)
             is_top = False
 
         pill_rect = QRect(sub_x, sub_y, sub_w, sub_h)
 
-        # Pill background: dark translucent capsule
-        bg_color = QColor(10, 10, 10, 200)
-        border_color = QColor(250, 204, 21, 180) if self.is_partial else QColor(255, 255, 255, 120)
+        # Pill background: dark frosted glass capsule
+        has_partial = any(l["is_partial"] for l in lines)
+        bg_color = QColor(10, 10, 10, 215)
+        border_color = QColor(250, 204, 21, 200) if has_partial else QColor(56, 189, 248, 160)
 
         painter.setBrush(QBrush(bg_color))
         painter.setPen(QPen(border_color, 1.5))
-        painter.drawRoundedRect(pill_rect, 12, 12)
+        painter.drawRoundedRect(pill_rect, 14, 14)
 
-        # Subtitle Text with subtle glowing shadow
-        # Shadow
-        painter.setPen(QColor(0, 0, 0, 220))
-        shadow_rect = pill_rect.translated(1, 1)
-        painter.drawText(shadow_rect, wrap_flags, self.current_subtitle)
+        # Render each line with appropriate styling
+        curr_y = sub_y + 10
+        for line, f, h in line_layouts:
+            line_rect = QRect(sub_x + 20, curr_y, sub_w - 40, h)
+            painter.setFont(f)
 
-        # Fore text (Yellow for partial stream, White for committed text)
-        fore_color = QColor(254, 240, 138) if self.is_partial else QColor(255, 255, 255)
-        painter.setPen(fore_color)
-        painter.drawText(pill_rect, wrap_flags, self.current_subtitle)
+            # Shadow
+            painter.setPen(QColor(0, 0, 0, 230))
+            painter.drawText(line_rect.translated(1, 1), wrap_flags, line["text"])
+
+            # Text Color
+            if line["is_history"]:
+                # Muted slate/white for previous sentence
+                painter.setPen(QColor(203, 213, 225, 220))
+            elif line["is_partial"]:
+                # Warm yellow for live streaming speech
+                painter.setPen(QColor(254, 240, 138, 255))
+            else:
+                # Bright white for latest committed sentence
+                painter.setPen(QColor(255, 255, 255, 255))
+
+            painter.drawText(line_rect, wrap_flags, line["text"])
+            curr_y += h + 8
 

@@ -44,10 +44,12 @@ class FasterWhisperEngine:
                 f"Loading Faster-Whisper '{self.model_size}' on {self.device} "
                 f"(Compute: {self.compute_type}, Max VRAM: {self.max_vram_mb}MB)..."
             )
+            num_threads = min(8, os.cpu_count() or 4)
             self.model = WhisperModel(
                 self.model_size,
                 device=self.device,
                 compute_type=self.compute_type,
+                cpu_threads=num_threads,
             )
             # Verify CUDA runtime libraries with a dry-run
             if self.device == "cuda":
@@ -62,8 +64,9 @@ class FasterWhisperEngine:
                 self.device = "cpu"
                 self.compute_type = "int8"
                 try:
-                    self.model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
-                    logger.info("Faster-Whisper model loaded successfully on CPU (INT8).")
+                    num_threads = min(8, os.cpu_count() or 4)
+                    self.model = WhisperModel(self.model_size, device="cpu", compute_type="int8", cpu_threads=num_threads)
+                    logger.info(f"Faster-Whisper model loaded successfully on CPU (INT8, {num_threads} threads).")
                 except Exception as ex_cpu:
                     logger.warning(f"Could not load faster-whisper on CPU ({ex_cpu}). Mock fallback.")
                     self.model = None

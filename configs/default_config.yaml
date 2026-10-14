@@ -42,5 +42,6 @@ ui:
   fps: 60
   click_through: true
   font_size: 18
-  auto_hide_seconds: 3.0
+  auto_hide_seconds: 7.0
   collision_detection: true
+
