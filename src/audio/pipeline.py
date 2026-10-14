@@ -2,11 +2,13 @@
 
 import os
 import subprocess
+import sys
 import threading
 import time
 from typing import Callable, Optional
 import numpy as np
 from loguru import logger
+
 
 from src.audio.capture import AudioCaptureManager, AudioRingBuffer
 from src.audio.vad import SileroVAD
