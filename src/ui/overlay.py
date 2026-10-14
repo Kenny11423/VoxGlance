@@ -199,10 +199,11 @@ class TransparentOverlayWindow(QMainWindow):
         painter.setFont(font)
 
         metrics = painter.fontMetrics()
-        text_w = metrics.horizontalAdvance(self.current_subtitle) + 40
-        text_h = metrics.height() + 20
-        sub_w = min(max(text_w, 300), int(screen_w * 0.8))
-        sub_h = text_h
+        wrap_flags = int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap)
+        max_w = int(screen_w * 0.75)
+        text_bound = metrics.boundingRect(QRect(0, 0, max_w, 2000), wrap_flags, self.current_subtitle)
+        sub_w = min(max(text_bound.width() + 40, 300), max_w)
+        sub_h = text_bound.height() + 24
 
         # Compute position with Collision Resolver
         if self.enable_collision_check:
@@ -228,9 +229,10 @@ class TransparentOverlayWindow(QMainWindow):
         # Shadow
         painter.setPen(QColor(0, 0, 0, 220))
         shadow_rect = pill_rect.translated(1, 1)
-        painter.drawText(shadow_rect, Qt.AlignmentFlag.AlignCenter, self.current_subtitle)
+        painter.drawText(shadow_rect, wrap_flags, self.current_subtitle)
 
         # Fore text (Yellow for partial stream, White for committed text)
         fore_color = QColor(254, 240, 138) if self.is_partial else QColor(255, 255, 255)
         painter.setPen(fore_color)
-        painter.drawText(pill_rect, Qt.AlignmentFlag.AlignCenter, self.current_subtitle)
+        painter.drawText(pill_rect, wrap_flags, self.current_subtitle)
+

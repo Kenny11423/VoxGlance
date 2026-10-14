@@ -102,6 +102,8 @@ class FasterWhisperEngine:
                 condition_on_previous_text=False,
                 no_speech_threshold=0.6,
                 log_prob_threshold=-0.8,
+                repetition_penalty=1.2,
+                no_repeat_ngram_size=3,
                 word_timestamps=False,
             )
 

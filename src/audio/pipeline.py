@@ -41,8 +41,8 @@ class AudioStreamingPipeline:
         self.min_silence_chunks = min_silence_chunks
 
         self.ring_buffer = AudioRingBuffer(sample_rate=sample_rate, buffer_duration_sec=10.0)
-        self._audio_queue: queue.Queue = queue.Queue(maxsize=16)  # Max 4 seconds of buffer
-        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+        self._audio_queue: queue.Queue = queue.Queue(maxsize=4)  # Max 1 second of buffer for ultra-low latency
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
         self._is_running = False
         self._capture_thread: Optional[threading.Thread] = None
@@ -54,6 +54,9 @@ class AudioStreamingPipeline:
         self._current_utterance = []
         self._silence_chunks = 0
         self._last_partial_time = 0.0
+        self._last_committed_text = ""
+        self._last_committed_time = 0.0
+
 
     def _get_system_monitor_source(self) -> Optional[str]:
         """Detect the default audio sink monitor on PipeWire/PulseAudio."""
@@ -196,14 +199,15 @@ class AudioStreamingPipeline:
             self._current_utterance.append(chunk)
             self._silence_chunks = 0
 
-            # Generate partial token every 400ms if we have at least 500ms of speech
+            # Generate partial preview every 700ms on a sliding window (max last 2.5s) to save CPU
             utterance_duration_s = (len(self._current_utterance) * self.chunk_samples) / self.sample_rate
-            if utterance_duration_s >= 0.5 and (now - self._last_partial_time >= 0.4):
-                audio_data = np.concatenate(self._current_utterance)
-                tokens = self.asr.transcribe(audio_data)
+            if utterance_duration_s >= 0.5 and (now - self._last_partial_time >= 0.7):
+                recent_samples = int(self.sample_rate * 2.5)
+                audio_slice = np.concatenate(self._current_utterance)[-recent_samples:]
+                tokens = self.asr.transcribe(audio_slice)
                 if tokens:
                     raw_text = " ".join(t.text for t in tokens).strip()
-                    if raw_text:
+                    if raw_text and raw_text != self._last_committed_text:
                         # Instant display: check LRU cache or show live recognized speech immediately
                         cached = self.translator.cache.get(raw_text)
                         display_text = cached if cached else f"🎙️ {raw_text}"
@@ -227,7 +231,10 @@ class AudioStreamingPipeline:
                     tokens = self.asr.transcribe(audio_data)
                     if tokens:
                         raw_text = " ".join(t.text for t in tokens).strip()
-                        if raw_text:
+                        # Deduplicate: do not repeat exact same sentence when pausing or re-segmenting
+                        if raw_text and (raw_text != self._last_committed_text or (now - self._last_committed_time > 3.0)):
+                            self._last_committed_text = raw_text
+                            self._last_committed_time = now
                             # Submit translation to background thread so audio capture NEVER blocks
                             if self._is_running and hasattr(self, "_executor") and self._executor:
                                 self._executor.submit(
@@ -239,6 +246,17 @@ class AudioStreamingPipeline:
                     # Reset buffer for next sentence
                     self._current_utterance.clear()
                     self._silence_chunks = 0
+            else:
+                # Video paused or in prolonged silence (> 0.75s)
+                self._silence_chunks += 1
+                if self._silence_chunks >= 3:
+                    # Purge any stale queued audio chunks immediately so paused video has no lingering subtitles
+                    while not self._audio_queue.empty():
+                        try:
+                            self._audio_queue.get_nowait()
+                        except Exception:
+                            break
+
 
     def stop(self) -> None:
         """Stop audio pipeline and release resources."""
