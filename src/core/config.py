@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 class SystemConfig(BaseModel):
     device: str = "cuda:0"
-    target_vram_mb: int = 950
+    target_vram_mb: int = 1800
     peak_guard_buffer_mb: int = 150
     enable_cuda: bool = True
     log_level: str = "INFO"
@@ -22,8 +22,8 @@ class VadConfig(BaseModel):
 
 
 class AsrConfig(BaseModel):
-    model_size: str = "tiny"
-    compute_type: str = "int8_float16"
+    model_size: str = "base"
+    compute_type: str = "float16"
     beam_size: int = 1
     max_vram_mb: int = 400
     language: str = "auto"

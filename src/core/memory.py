@@ -27,7 +27,7 @@ class MemoryController:
     def __init__(
         self,
         device_index: int = 0,
-        target_vram_mb: int = 950,
+        target_vram_mb: int = 1800,
         peak_guard_buffer_mb: int = 150,
     ):
         self.device_index = device_index

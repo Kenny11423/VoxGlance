@@ -34,12 +34,21 @@ class OmniTranslateOrchestrator:
         )
         self.translator = HybridTranslator()
 
+        from src.audio.asr import FasterWhisperEngine
+        self.asr_engine = asr_engine or FasterWhisperEngine(
+            model_size=config.audio.asr.model_size,
+            device="cuda" if config.system.enable_cuda else "cpu",
+            compute_type=config.audio.asr.compute_type,
+            max_vram_mb=config.audio.asr.max_vram_mb,
+            memory_controller=self.memory_controller,
+        )
+
         # Pipelines
         self.audio_pipeline = AudioStreamingPipeline(
             source=self.audio_source,
             sample_rate=config.audio.sample_rate,
             chunk_ms=config.audio.chunk_duration_ms,
-            asr=asr_engine,
+            asr=self.asr_engine,
             translator=self.translator,
             on_subtitle=self._handle_subtitle,
         )

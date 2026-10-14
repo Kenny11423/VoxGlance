@@ -35,7 +35,7 @@ class FasterWhisperEngine:
 
     def __init__(
         self,
-        model_size: str = "tiny",
+        model_size: str = "base",
         device: str = "cuda",
         compute_type: str = "float16",
         max_vram_mb: int = 400,

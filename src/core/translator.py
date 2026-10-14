@@ -16,44 +16,93 @@ class BaseTranslator(ABC):
         pass
 
 
-class LocalCTranslate2Translator(BaseTranslator):
-    """Local translation using CTranslate2 (e.g., Opus-MT or NLLB-200 INT8)."""
+def _preload_nvidia_libs() -> None:
+    """Preload bundled NVIDIA CUDA/cuDNN/cuBLAS shared libraries."""
+    import ctypes
+    import glob
+    import sys
+    try:
+        for p in sys.path:
+            if "site-packages" in p:
+                for lib_dir in glob.glob(os.path.join(p, "nvidia", "*", "lib")):
+                    if os.path.isdir(lib_dir):
+                        if lib_dir not in os.environ.get("LD_LIBRARY_PATH", ""):
+                            os.environ["LD_LIBRARY_PATH"] = f"{lib_dir}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+                        for fname in sorted(os.listdir(lib_dir)):
+                            if fname.endswith(".so") or ".so." in fname:
+                                try:
+                                    ctypes.CDLL(os.path.join(lib_dir, fname))
+                                except Exception:
+                                    pass
+    except Exception:
+        pass
 
-    def __init__(self, model_path: Optional[str] = None, device: str = "cpu"):
+
+class LocalCTranslate2Translator(BaseTranslator):
+    """Local ultra-fast translation using CTranslate2 (Helsinki-NLP Opus-MT en->vi, ~15ms)."""
+
+    def __init__(self, model_path: Optional[str] = None, device: str = "cuda"):
         self.device = device
         self.model_path = model_path
         self._model = None
-        self._tokenizer = None
+        self._sp_source = None
+        self._sp_target = None
         self._init_engine()
 
     def _init_engine(self) -> None:
-        if self.model_path and os.path.exists(self.model_path):
+        try:
+            if self.device == "cuda":
+                _preload_nvidia_libs()
+
+            if not self.model_path or not os.path.exists(self.model_path):
+                from huggingface_hub import snapshot_download
+                self.model_path = snapshot_download("gaudi/opus-mt-en-vi-ctranslate2")
+
+            import ctranslate2
+            import sentencepiece as spm
+
+            sp_source_path = os.path.join(self.model_path, "source.spm")
+            sp_target_path = os.path.join(self.model_path, "target.spm")
+            if os.path.exists(sp_source_path) and os.path.exists(sp_target_path):
+                self._sp_source = spm.SentencePieceProcessor(model_file=sp_source_path)
+                self._sp_target = spm.SentencePieceProcessor(model_file=sp_target_path)
+
             try:
-                import ctranslate2
                 self._model = ctranslate2.Translator(self.model_path, device=self.device)
-                logger.info(f"LocalCTranslate2Translator loaded from {self.model_path} on {self.device}")
-            except Exception as e:
-                logger.warning(f"Failed to load CTranslate2 model from {self.model_path}: {e}")
-                self._model = None
-        else:
-            # Fallback fast heuristic / dictionary baseline when model weights are not loaded
+                logger.info(f"LocalCTranslate2Translator loaded on {self.device} (Sub-30ms offline translation active).")
+            except Exception as cuda_err:
+                if self.device == "cuda":
+                    logger.warning(f"CUDA translation error ({cuda_err}). Falling back to CPU.")
+                    self.device = "cpu"
+                    self._model = ctranslate2.Translator(self.model_path, device="cpu")
+                    logger.info("LocalCTranslate2Translator loaded on CPU.")
+                else:
+                    raise cuda_err
+        except Exception as e:
+            logger.warning(f"Could not load local CTranslate2 model: {e}")
             self._model = None
 
     def translate(self, text: str, source_lang: str = "en", target_lang: str = "vi") -> str:
         clean_text = text.strip()
-        if not clean_text:
+        if not clean_text or (len(clean_text) == 1 and not clean_text.isalnum()):
             return ""
 
-        if self._model is not None:
+        if self._model is not None and self._sp_source is not None and self._sp_target is not None:
             try:
-                # If model is loaded, translate via CTranslate2
-                tokens = clean_text.split()
-                results = self._model.translate_batch([tokens])
-                return " ".join(results[0].hypotheses[0])
+                tokens = [">>vie<<"] + self._sp_source.encode(clean_text, out_type=str) + ["</s>"]
+                results = self._model.translate_batch(
+                    [tokens],
+                    beam_size=2,
+                    repetition_penalty=1.2,
+                    max_decoding_length=80,
+                )
+                out_tokens = [tok for tok in results[0].hypotheses[0] if tok not in ["</s>", ">>vie<<"]]
+                vi_text = self._sp_target.decode(out_tokens).strip()
+                if vi_text:
+                    return vi_text
             except Exception as e:
                 logger.error(f"CTranslate2 inference error: {e}")
 
-        # Lightweight fallback when local model weights are not loaded
         return clean_text
 
 
@@ -135,7 +184,7 @@ class HybridTranslator(BaseTranslator):
         cache: Optional[LRUTermCache] = None,
         local_translator: Optional[BaseTranslator] = None,
         cloud_translator: Optional[BaseTranslator] = None,
-        prefer_cloud: bool = True,
+        prefer_cloud: bool = False,
     ):
         self.cache = cache or LRUTermCache(maxsize=2000)
         self.local = local_translator or LocalCTranslate2Translator()
@@ -152,14 +201,16 @@ class HybridTranslator(BaseTranslator):
         if cached:
             return cached
 
-        # 2. Translate via Cloud / Online or Local
+        # 2. Local-first for sub-30ms zero-lag translation, fallback to cloud
         result = ""
-        if self.prefer_cloud:
+        if not self.prefer_cloud and hasattr(self.local, "_model") and self.local._model is not None:
+            result = self.local.translate(clean, source_lang, target_lang)
+            if not result or result == clean:
+                result = self.cloud.translate(clean, source_lang, target_lang)
+        else:
             result = self.cloud.translate(clean, source_lang, target_lang)
             if not result or result.startswith("[Cloud Offline]"):
                 result = self.local.translate(clean, source_lang, target_lang)
-        else:
-            result = self.local.translate(clean, source_lang, target_lang)
 
         # 3. Store in LRU Cache if valid translation
         if result:

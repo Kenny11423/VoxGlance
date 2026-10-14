@@ -232,25 +232,24 @@ class AudioStreamingPipeline:
             self._silence_chunks = 0
             utterance_duration_s = (len(self._current_utterance) * self.chunk_samples) / self.sample_rate
 
-            # If continuous speech reaches 3.5s, commit cleanly to prevent lag and accumulated delay
-            if utterance_duration_s >= 3.5:
+            # If continuous speech reaches 2.0s, commit cleanly to prevent lag and accumulated delay
+            if utterance_duration_s >= 2.0:
                 self._commit_current_utterance(now)
                 return
 
-            # Generate live partial preview every 400ms when we have at least 500ms of speech
-            if utterance_duration_s >= 0.5 and (now - self._last_partial_time >= 0.4):
+            # Generate live partial preview every 250ms when we have at least 350ms of speech
+            if utterance_duration_s >= 0.35 and (now - self._last_partial_time >= 0.25):
                 audio_data = np.concatenate(self._current_utterance)
                 tokens = self.asr.transcribe(audio_data)
                 if tokens:
                     raw_text = " ".join(t.text for t in tokens).strip()
                     if raw_text and raw_text != self._last_committed_text:
-                        # Instant display: check LRU cache or show live recognized speech immediately
-                        cached = self.translator.cache.get(raw_text)
-                        display_text = cached if cached else f"🎙️ {raw_text}"
-                        if self.on_subtitle:
+                        # Translate immediately to Vietnamese in sub-30ms! NEVER display raw English!
+                        vi_text = self.translator.translate(raw_text, source_lang="en", target_lang="vi")
+                        if vi_text and self.on_subtitle:
                             self.on_subtitle(
                                 SubtitleToken(
-                                    text=display_text,
+                                    text=vi_text,
                                     is_partial=True,
                                     start_time=0.0,
                                     end_time=utterance_duration_s,

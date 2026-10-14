@@ -1,6 +1,6 @@
 system:
   device: "cuda:0"
-  target_vram_mb: 950
+  target_vram_mb: 1800
   peak_guard_buffer_mb: 150
   enable_cuda: true
   log_level: "INFO"
@@ -16,8 +16,8 @@ audio:
     min_speech_duration_ms: 100
     min_silence_duration_ms: 200
   asr:
-    model_size: "tiny"     # tiny, base, small
-    compute_type: "int8_float16" # int8 quantization for <400MB VRAM
+    model_size: "base"     # tiny, base, small
+    compute_type: "float16" # FP16 Tensor Cores for RTX 2050
     beam_size: 1
     max_vram_mb: 400
     language: "auto"
