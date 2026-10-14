@@ -34,18 +34,17 @@ def test_audio_pipeline_stream_and_revise():
     speech_chunk = (0.2 * np.sin(2 * np.pi * 300 * t)).astype(np.float32)
     silence_chunk = np.zeros(4000, dtype=np.float32)
 
-    utterance = []
     # 1. First speech chunk
-    pipeline._process_chunk(speech_chunk, utterance, 0, 0.0)
-    assert len(utterance) == 1
+    pipeline._process_chunk(speech_chunk)
+    assert len(pipeline._current_utterance) == 1
 
     # 2. Second speech chunk (total 500ms speech)
-    pipeline._process_chunk(speech_chunk, utterance, 0, 0.0)
-    assert len(utterance) == 2
+    pipeline._process_chunk(speech_chunk)
+    assert len(pipeline._current_utterance) == 2
 
     # 3. Silence chunk (trigger commit)
-    pipeline._process_chunk(silence_chunk, utterance, 0, 0.0)
-    assert len(utterance) == 0  # Committed and cleared
+    pipeline._process_chunk(silence_chunk)
+    assert len(pipeline._current_utterance) == 0  # Committed and cleared
 
     pipeline.stop()
 

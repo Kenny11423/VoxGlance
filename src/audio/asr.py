@@ -14,7 +14,7 @@ class FasterWhisperEngine:
 
     def __init__(
         self,
-        model_size: str = "small",
+        model_size: str = "tiny",
         device: str = "cuda",
         compute_type: str = "int8_float16",
         max_vram_mb: int = 400,
@@ -29,8 +29,7 @@ class FasterWhisperEngine:
         self._load_model()
 
     def _load_model(self) -> None:
-        """Load quantized Whisper model with memory verification."""
-        # Check VRAM before loading
+        """Load quantized Whisper model with memory verification and automatic CPU fallback."""
         if self.device == "cuda" and not self.memory_controller.can_allocate(self.max_vram_mb):
             logger.warning(
                 f"Insufficient VRAM headroom for Whisper {self.model_size} ({self.max_vram_mb}MB). "
@@ -50,13 +49,27 @@ class FasterWhisperEngine:
                 device=self.device,
                 compute_type=self.compute_type,
             )
-            logger.info("Faster-Whisper model loaded successfully.")
+            # Verify CUDA runtime libraries with a dry-run
+            if self.device == "cuda":
+                dummy = np.zeros(1600, dtype=np.float32)
+                list(self.model.transcribe(dummy, beam_size=1)[0])
+            logger.info(f"Faster-Whisper model loaded successfully on {self.device}.")
         except Exception as e:
-            logger.warning(
-                f"Could not load faster-whisper on {self.device} ({e}). "
-                f"Engine running in simulation/mock mode."
-            )
-            self.model = None
+            if self.device == "cuda":
+                logger.warning(
+                    f"CUDA library error ({e}). Automatically switching Faster-Whisper to CPU INT8 mode."
+                )
+                self.device = "cpu"
+                self.compute_type = "int8"
+                try:
+                    self.model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
+                    logger.info("Faster-Whisper model loaded successfully on CPU (INT8).")
+                except Exception as ex_cpu:
+                    logger.warning(f"Could not load faster-whisper on CPU ({ex_cpu}). Mock fallback.")
+                    self.model = None
+            else:
+                logger.warning(f"Could not load faster-whisper on {self.device} ({e}). Mock fallback.")
+                self.model = None
 
     def transcribe(
         self,
@@ -98,5 +111,13 @@ class FasterWhisperEngine:
                 )
             return tokens
         except Exception as e:
+            err_msg = str(e).lower()
+            if self.device == "cuda" and ("libcublas" in err_msg or "cuda" in err_msg or "cudnn" in err_msg):
+                logger.warning(f"CUDA runtime transcription error ({e}). Switching to CPU INT8 mode.")
+                self.device = "cpu"
+                self.compute_type = "int8"
+                from faster_whisper import WhisperModel
+                self.model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
+                return self.transcribe(audio, language=language, beam_size=beam_size)
             logger.error(f"Error during Faster-Whisper transcription: {e}")
             return []

@@ -27,6 +27,7 @@ from src.audio.capture import AudioCaptureManager
 from src.audio.vad import SileroVAD
 from src.audio.asr import FasterWhisperEngine
 from src.core.translator import HybridTranslator
+from src.core.orchestrator import OmniTranslateOrchestrator
 
 
 def run_demo_overlay(config):
@@ -110,6 +111,7 @@ def run_live_mode(config, audio_source: str = "auto", enable_ocr: bool = True):
         enable_collision_check=config.ui.collision_detection,
     )
     overlay.show()
+    overlay.update_subtitle("🎙️ OmniTranslate đang lắng nghe... (Hãy mở video/game hoặc nói vào mic)", is_partial=True)
 
     orchestrator = OmniTranslateOrchestrator(
         config=config,
@@ -150,14 +152,27 @@ def main():
     elif args.mode in ["demo", "overlay"]:
         run_demo_overlay(config)
     else:
-        logger.info("CLI mode started. Listening to audio stream...")
+        logger.info(f"CLI mode started (Audio Source: {args.source}). Listening to audio stream...")
+
+        def _cli_subtitle(token):
+            prefix = "🎙️ [Tạm thời]" if token.is_partial else "✅ [Chốt câu]"
+            print(f"\n{prefix}: {token.text}", flush=True)
+
         orchestrator = OmniTranslateOrchestrator(
             config=config,
             overlay=None,
             audio_source=args.source,
             enable_ocr=not args.no_ocr,
         )
+        orchestrator.audio_pipeline.on_subtitle = _cli_subtitle
         orchestrator.start()
+
+        print("\n" + "=" * 65)
+        print("  OmniTranslate CLI Active | Đang nghe âm thanh trực tiếp")
+        print("  (Hãy mở video YouTube tiếng Anh hoặc nói vào mic)")
+        print("  Nhấn Ctrl+C để dừng")
+        print("=" * 65 + "\n")
+
         try:
             while True:
                 time.sleep(1.0)

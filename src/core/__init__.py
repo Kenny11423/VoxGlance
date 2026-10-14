@@ -1,10 +1,9 @@
-"""Core components: Config, Memory Controller, Cache, IPC, Translator, and Orchestrator."""
+"""Core components: Config, Memory Controller, Cache, IPC, and Translator."""
 
 from src.core.config import AppConfig, load_config
 from src.core.memory import MemoryController, VRAMInfo
 from src.core.cache import LRUTermCache
 from src.core.translator import HybridTranslator
-from src.core.orchestrator import OmniTranslateOrchestrator
 
 __all__ = [
     "AppConfig",
@@ -13,5 +12,4 @@ __all__ = [
     "VRAMInfo",
     "LRUTermCache",
     "HybridTranslator",
-    "OmniTranslateOrchestrator",
 ]

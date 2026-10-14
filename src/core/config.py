@@ -22,7 +22,7 @@ class VadConfig(BaseModel):
 
 
 class AsrConfig(BaseModel):
-    model_size: str = "small"
+    model_size: str = "tiny"
     compute_type: str = "int8_float16"
     beam_size: int = 1
     max_vram_mb: int = 400

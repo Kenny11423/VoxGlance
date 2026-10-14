@@ -16,7 +16,7 @@ audio:
     min_speech_duration_ms: 100
     min_silence_duration_ms: 200
   asr:
-    model_size: "small"    # tiny, base, small
+    model_size: "tiny"     # tiny, base, small
     compute_type: "int8_float16" # int8 quantization for <400MB VRAM
     beam_size: 1
     max_vram_mb: 400

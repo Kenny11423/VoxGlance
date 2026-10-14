@@ -43,6 +43,11 @@ class AudioStreamingPipeline:
         self._capture_proc: Optional[subprocess.Popen] = None
         self._capture_manager: Optional[AudioCaptureManager] = None
 
+        # State for Stream-and-Revise
+        self._current_utterance = []
+        self._silence_chunks = 0
+        self._last_partial_time = 0.0
+
     def _get_system_monitor_source(self) -> Optional[str]:
         """Detect the default audio sink monitor on PipeWire/PulseAudio."""
         try:
@@ -115,80 +120,74 @@ class AudioStreamingPipeline:
                     continue
 
                 chunk = np.frombuffer(raw_bytes, dtype=np.float32)
-                self._process_chunk(chunk, current_utterance, silence_chunks, last_partial_time)
+                self._process_chunk(chunk)
             except Exception as e:
                 logger.error(f"Error in pipewire read loop: {e}")
                 break
 
     def _sounddevice_loop(self) -> None:
         """Poll audio chunks from AudioCaptureManager ring buffer."""
-        current_utterance = []
-        silence_chunks = 0
-        last_partial_time = 0.0
-
         while self._is_running and self._capture_manager:
             if len(self._capture_manager.ring_buffer) >= self.chunk_samples:
                 chunk = self._capture_manager.ring_buffer.get_latest(self.chunk_samples)
-                self._process_chunk(chunk, current_utterance, silence_chunks, last_partial_time)
+                self._process_chunk(chunk)
             else:
                 time.sleep(self.chunk_ms / 2000.0)
 
-    def _process_chunk(
-        self,
-        chunk: np.ndarray,
-        current_utterance: list,
-        silence_chunks: int,
-        last_partial_time: float,
-    ) -> None:
+    def _process_chunk(self, chunk: np.ndarray) -> None:
         """Core Stream-and-Revise state machine."""
         vad_res = self.vad.is_speech_chunk(chunk)
         now = time.time()
 
         if vad_res.is_speech:
-            current_utterance.append(chunk)
-            silence_chunks = 0
+            self._current_utterance.append(chunk)
+            self._silence_chunks = 0
 
             # Generate partial token every 400ms if we have at least 500ms of audio
-            utterance_duration_s = (len(current_utterance) * self.chunk_samples) / self.sample_rate
-            if utterance_duration_s >= 0.5 and (now - last_partial_time >= 0.4):
-                audio_data = np.concatenate(current_utterance)
+            utterance_duration_s = (len(self._current_utterance) * self.chunk_samples) / self.sample_rate
+            if utterance_duration_s >= 0.5 and (now - self._last_partial_time >= 0.4):
+                audio_data = np.concatenate(self._current_utterance)
                 tokens = self.asr.transcribe(audio_data)
                 if tokens:
                     raw_text = " ".join(t.text for t in tokens).strip()
                     translated = self.translator.translate(raw_text, source_lang="en", target_lang="vi")
-                    if self.on_subtitle and translated:
-                        self.on_subtitle(
-                            SubtitleToken(
-                                text=translated,
-                                is_partial=True,
-                                start_time=0.0,
-                                end_time=utterance_duration_s,
+                    if translated:
+                        logger.info(f"🎙️ [Live]: {raw_text} -> {translated}")
+                        if self.on_subtitle:
+                            self.on_subtitle(
+                                SubtitleToken(
+                                    text=translated,
+                                    is_partial=True,
+                                    start_time=0.0,
+                                    end_time=utterance_duration_s,
+                                )
                             )
-                        )
-                last_partial_time = now
+                self._last_partial_time = now
         else:
-            if current_utterance:
-                silence_chunks += 1
-                # If silence duration exceeds 250ms (e.g. 1 chunk of 250ms), commit final text
-                if silence_chunks >= 1:
-                    audio_data = np.concatenate(current_utterance)
+            if self._current_utterance:
+                self._silence_chunks += 1
+                # If silence duration exceeds 250ms (1 chunk), commit final text
+                if self._silence_chunks >= 1:
+                    audio_data = np.concatenate(self._current_utterance)
                     utterance_duration_s = len(audio_data) / self.sample_rate
                     tokens = self.asr.transcribe(audio_data)
                     if tokens:
                         raw_text = " ".join(t.text for t in tokens).strip()
                         translated = self.translator.translate(raw_text, source_lang="en", target_lang="vi")
-                        if self.on_subtitle and translated:
-                            self.on_subtitle(
-                                SubtitleToken(
-                                    text=translated,
-                                    is_partial=False,
-                                    start_time=0.0,
-                                    end_time=utterance_duration_s,
+                        if translated:
+                            logger.info(f"✅ [Commit]: {raw_text} -> {translated}")
+                            if self.on_subtitle:
+                                self.on_subtitle(
+                                    SubtitleToken(
+                                        text=translated,
+                                        is_partial=False,
+                                        start_time=0.0,
+                                        end_time=utterance_duration_s,
+                                    )
                                 )
-                            )
                     # Reset buffer for next sentence
-                    current_utterance.clear()
-                    silence_chunks = 0
+                    self._current_utterance.clear()
+                    self._silence_chunks = 0
 
     def stop(self) -> None:
         """Stop audio pipeline and release resources."""
