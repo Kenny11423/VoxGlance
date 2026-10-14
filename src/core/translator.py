@@ -122,7 +122,7 @@ class CloudTranslator(BaseTranslator):
             import requests
             self._session = requests.Session()
             # Set Keep-Alive headers
-            self._session.headers.update({"User-Agent": "OmniTranslate/1.0"})
+            self._session.headers.update({"User-Agent": "VoxGlance/1.0"})
         except Exception as e:
             self._session = None
 

@@ -1,4 +1,4 @@
-"""Memory Controller and VRAM Profiler for OmniTranslate.
+"""Memory Controller and VRAM Profiler for VoxGlance.
 
 Enforces strict GPU VRAM budget (< 950MB) and provides peak guard buffer checks.
 """

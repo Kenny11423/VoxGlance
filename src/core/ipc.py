@@ -1,4 +1,4 @@
-"""Inter-Process Communication (IPC) schemas and queues for OmniTranslate."""
+"""Inter-Process Communication (IPC) schemas and queues for VoxGlance."""
 
 from dataclasses import dataclass, field
 import multiprocessing as mp

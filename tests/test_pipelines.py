@@ -1,4 +1,4 @@
-"""Tests for AudioStreamingPipeline, VisualStreamingPipeline, and OmniTranslateOrchestrator."""
+"""Tests for AudioStreamingPipeline, VisualStreamingPipeline, and VoxGlanceOrchestrator."""
 
 import numpy as np
 import pytest
@@ -6,7 +6,7 @@ import pytest
 from src.audio.pipeline import AudioStreamingPipeline
 from src.core.config import AppConfig
 from src.core.ipc import SubtitleToken
-from src.core.orchestrator import OmniTranslateOrchestrator
+from src.core.orchestrator import VoxGlanceOrchestrator, OmniTranslateOrchestrator
 from src.visual.pipeline import VisualStreamingPipeline
 
 
@@ -79,7 +79,7 @@ def test_visual_pipeline_lifecycle():
 
 def test_orchestrator_lifecycle():
     config = AppConfig()
-    orchestrator = OmniTranslateOrchestrator(
+    orchestrator = VoxGlanceOrchestrator(
         config=config,
         overlay=None,
         audio_source="mock",
@@ -92,3 +92,6 @@ def test_orchestrator_lifecycle():
 
     orchestrator.stop()
     assert orchestrator._is_active is False
+
+    # Verify backward compatibility alias
+    assert OmniTranslateOrchestrator is VoxGlanceOrchestrator

@@ -1,5 +1,5 @@
 # BẢNG CÂU HỎI KHẢO SÁT ĐỊNH LƯỢNG NGƯỜI DÙNG (QUANTITATIVE SURVEY QUESTIONNAIRE)
-## Dự án: OmniTranslate – Real-time Multimodal Live Translator
+## Dự án: VoxGlance – Real-time Multimodal Live Translator
 
 ---
 
@@ -81,7 +81,7 @@
 
 **Câu 8 [Độ quan trọng của các tính năng]:** Hãy đánh giá mức độ quan trọng của các giải pháp công nghệ sau đối với Bạn (1: Không quan trọng $\rightarrow$ 5: Cực kỳ quan trọng):
 
-| Tính năng cốt lõi của OmniTranslate | 1 | 2 | 3 | 4 | 5 |
+| Tính năng cốt lõi của VoxGlance | 1 | 2 | 3 | 4 | 5 |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | 8.1. **Đồng bộ siêu tốc ($< 0.5$ giây):** Phụ đề tiếng Việt xuất hiện bám sát ngay khi nhân vật cất tiếng | ( ) | ( ) | ( ) | ( ) | ( ) |
 | 8.2. **Chỉ hiển thị Tiếng Việt:** Không hiển thị tiếng Anh gốc, giao diện tối giản như phụ đề rạp phim | ( ) | ( ) | ( ) | ( ) | ( ) |
@@ -121,9 +121,9 @@
 - [ ] **Thuê bao hàng tháng (Monthly Subscription):** Trả phí linh hoạt theo tháng (ví dụ 49.000đ – 79.000đ/tháng), có thể hủy bất cứ lúc nào.
 - [ ] **Gói trả theo mức sử dụng (Pay-per-hour):** Mua giờ sử dụng (ví dụ 10.000đ / 10 tiếng dịch).
 
-**Câu 15 [Điểm giới thiệu Net Promoter Score - NPS]:** Trên thang điểm từ 0 đến 10, Bạn sẵn sàng giới thiệu phần mềm OmniTranslate cho bạn bè, đồng nghiệp hoặc hội nhóm cùng sở thích ở mức độ nào?
+**Câu 15 [Điểm giới thiệu Net Promoter Score - NPS]:** Trên thang điểm từ 0 đến 10, Bạn sẵn sàng giới thiệu phần mềm VoxGlance cho bạn bè, đồng nghiệp hoặc hội nhóm cùng sở thích ở mức độ nào?
 *(0: Hoàn toàn không giới thiệu $\longleftrightarrow$ 10: Chắc chắn sẽ giới thiệu nhiệt tình)*
 `[ 0 ] [ 1 ] [ 2 ] [ 3 ] [ 4 ] [ 5 ] [ 6 ] [ 7 ] [ 8 ] [ 9 ] [ 10 ]`
 
-**Câu 16 [Góp ý tự do]:** Bạn có mong muốn, kỳ vọng hoặc lời khuyên nào dành cho đội ngũ phát triển OmniTranslate không?
+**Câu 16 [Góp ý tự do]:** Bạn có mong muốn, kỳ vọng hoặc lời khuyên nào dành cho đội ngũ phát triển VoxGlance không?
 - Ý kiến của Bạn: ____________________________________________________________________

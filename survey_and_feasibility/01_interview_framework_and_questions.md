@@ -1,5 +1,5 @@
 # KHUNG PHỎNG VẤN SÂU ĐỐI TƯỢNG NGƯỜI DÙNG (IN-DEPTH INTERVIEW FRAMEWORK)
-## Dự án: OmniTranslate – Real-time Multimodal Live Translator
+## Dự án: VoxGlance – Real-time Multimodal Live Translator
 ### Thiết kế chuẩn định tính đối chiếu với các công cụ thực tế (Translumo, LunaTranslator, YouTube Captions, DeepL)
 
 ---
@@ -12,13 +12,13 @@
   * Tại sao các phần mềm dịch màn hình OCR (như Translumo, MORT, Capture2Text) không đáp ứng được khi xem phim hoặc chơi game?
   * Tại sao các công cụ hook bộ nhớ (như LunaTranslator) gây lo sợ bị cấm tài khoản (Ban nick)?
   * Tại sao YouTube Auto-Captions hay Live Translation của trình duyệt gây ức chế (độ trễ $> 2\text{s}$, dịch bậy khi có nhạc nền, hiện 2 thứ tiếng rối mắt)?
-* **Kiểm chứng các giả định cốt lõi của OmniTranslate:**
+* **Kiểm chứng các giả định cốt lõi của VoxGlance:**
   * Giả định 1: Người dùng chỉ muốn thấy **duy nhất bản dịch Tiếng Việt thuần túy**, loại bỏ tiếng Anh gốc để chống quá tải thị giác.
   * Giả định 2: Độ trễ $\le 0.5$ giây là điều kiện tiên quyết để phụ đề bám sát khẩu hình và nhịp thoại.
   * Giả định 3: Khả năng bắt âm thanh trực tiếp (Audio-to-Subtitle) kết hợp chống từ ma bằng AI là đột phá mà các tool OCR hiện nay hoàn toàn thiếu.
 
 ### 1.2. Phương pháp luận
-* **Hình thức:** Phỏng vấn bán cấu trúc (Semi-structured In-depth Interview), kết hợp phương pháp *Thinking Aloud* (người dùng vừa thao tác vừa nói suy nghĩ khi trải nghiệm nguyên mẫu OmniTranslate).
+* **Hình thức:** Phỏng vấn bán cấu trúc (Semi-structured In-depth Interview), kết hợp phương pháp *Thinking Aloud* (người dùng vừa thao tác vừa nói suy nghĩ khi trải nghiệm nguyên mẫu VoxGlance).
 * **Thời lượng:** 30 – 45 phút / người.
 * **Quy mô mẫu định tính:** $N = 15$ người dùng thực tế được tuyển chọn từ các cộng đồng:
   * **Nhóm 1 (Gamers & Streamers - Tuyển từ JRPG Vietnam & Discord Gaming):** 6 người (thường xuyên chơi game nhập vai, visual novel, theo dõi giải đấu Esports trên Twitch).
@@ -57,7 +57,7 @@
 ```mermaid
 flowchart LR
     A["Giai đoạn 1\nKhởi động & Khám phá thói quen\n(5-7 phút)"] --> B["Giai đoạn 2\nĐào sâu điểm đau với tool hiện có\n(10-15 phút)"]
-    B --> C["Giai đoạn 3\nThực nghiệm mẫu OmniTranslate\n(12-15 phút)"]
+    B --> C["Giai đoạn 3\nThực nghiệm mẫu VoxGlance\n(12-15 phút)"]
     C --> D["Giai đoạn 4\nĐánh giá giá trị & Mức sẵn sàng trả\n(5-8 phút)"]
 ```
 
@@ -74,8 +74,8 @@ flowchart LR
 7. *Khi xem video có nhạc nền (BGM) hoặc tiếng súng đạn, các phần mềm dịch tự động có bao giờ bị hiện tượng tự chế ra các từ ma vô nghĩa (`"Thank you"`, `"I'm sorry"`) không?*
 8. *Cảm giác của Anh/Chị ra sao khi màn hình hiển thị cả dòng tiếng Anh và dòng tiếng Việt cùng lúc?*
 
-### Phần 3: Thử nghiệm thực tế giải pháp OmniTranslate (Hands-on Feedback)
-*(Bật ứng dụng OmniTranslate Live Mode với luồng video YouTube tiếng Anh và gameplay game có BGM)*
+### Phần 3: Thử nghiệm thực tế giải pháp VoxGlance (Hands-on Feedback)
+*(Bật ứng dụng VoxGlance Live Mode với luồng video YouTube tiếng Anh và gameplay game có BGM)*
 9. *Khi quan sát phụ đề tiếng Việt xuất hiện trực tiếp dưới màn hình, Anh/Chị cảm nhận tốc độ hiển thị thế nào so với khẩu hình của nhân vật? Có cảm nhận thấy độ trễ không?*
 10. *Việc ứng dụng **chỉ hiển thị duy nhất câu dịch Tiếng Việt** (loại bỏ hoàn toàn tiếng Anh) có giúp mắt Anh/Chị tập trung hơn vào nội dung chính không?*
 11. *Cơ chế cuộn 2 dòng (Dòng trên lưu câu trước trong 8 giây, dòng dưới chạy câu mới) có giúp Anh/Chị kịp đọc trọn vẹn câu thoại không?*
@@ -84,14 +84,14 @@ flowchart LR
 
 ### Phần 4: Đánh giá tính năng, Bảo mật & Sẵn sàng chi trả (Willingness to Pay)
 14. *Nếu phần mềm này hoạt động hoàn toàn Offline ngay trên card đồ họa máy tính của Anh/Chị, không gửi bất kỳ gói tin nào lên Internet, điều đó có ý nghĩa như thế nào đối với Anh/Chị?*
-15. *So với mức phí thuê bao hàng tháng đắt đỏ của DeepL Pro (~220.000đ/tháng), nếu OmniTranslate cung cấp bản quyền mua trọn đời một lần (Lifetime License) trong tầm giá 299.000đ – 399.000đ (bằng giá 1 tựa game Steam), Anh/Chị có sẵn sàng chi trả không?*
+15. *So với mức phí thuê bao hàng tháng đắt đỏ của DeepL Pro (~220.000đ/tháng), nếu VoxGlance cung cấp bản quyền mua trọn đời một lần (Lifetime License) trong tầm giá 299.000đ – 399.000đ (bằng giá 1 tựa game Steam), Anh/Chị có sẵn sàng chi trả không?*
 16. *Tính năng nào Anh/Chị muốn được hoàn thiện nhất trước khi phần mềm ra mắt chính thức?*
 
 ---
 
 ## 4. BIÊN BẢN TỔNG HỢP GHI CHÚ PHỎNG VẤN THỰC NGHIỆM
 
-| Mã Đối Tượng | Hồ Sơ Người Dùng | Cấu Hình Máy | Điểm Đau Với Tool Hiện Có | Phản Hồi Khi Trải Nghiệm OmniTranslate | Đánh Giá Về Mức Delay | Nhận Xét Về Mô Hình Giá |
+| Mã Đối Tượng | Hồ Sơ Người Dùng | Cấu Hình Máy | Điểm Đau Với Tool Hiện Có | Phản Hồi Khi Trải Nghiệm VoxGlance | Đánh Giá Về Mức Delay | Nhận Xét Về Mô Hình Giá |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **P-01** (Hoàng Nam) | Gamer JRPG (Voz f/72) | i5 12400F, RTX 3060 12GB | Translumo điếc khi xem cutscene không text; LunaTranslator sợ bị Steam ban nick | "Quá ấn tượng vì không cần bấm gì cả, nhân vật nói là sub tiếng Việt hiện ra ngay như phim rạp." | Cực nhanh ($< 400\text{ms}$), khớp khẩu hình. | 350k – 400k vĩnh viễn là quá hời so với việc mua game. |
 | **P-02** (Thu Trang) | Sinh viên AI (ĐHQG) | i7 1165G7, Iris Xe | YouTube captions trễ 3s, giảng viên lật slide là mất chữ; hiện 2 thứ tiếng nhức mắt | "Giao diện chỉ hiện tiếng Việt rất thoáng mắt, dòng lưu 8 giây giúp ghi chép bài giảng kịp thời." | Phụ đề ra kịp khi giảng viên vừa dứt câu. | Sẵn sàng mua gói Lifetime 300k. |

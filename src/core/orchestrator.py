@@ -11,7 +11,7 @@ from src.ui.overlay import TransparentOverlayWindow
 from src.visual.pipeline import VisualStreamingPipeline
 
 
-class OmniTranslateOrchestrator:
+class VoxGlanceOrchestrator:
     """Central engine orchestrating multimodal streaming translation."""
 
     def __init__(
@@ -78,7 +78,7 @@ class OmniTranslateOrchestrator:
             return
 
         self._is_active = True
-        logger.info(f"Starting OmniTranslate Orchestrator (Audio Source: {self.audio_source}, OCR: {self.enable_ocr})...")
+        logger.info(f"Starting VoxGlance Orchestrator (Audio Source: {self.audio_source}, OCR: {self.enable_ocr})...")
 
         # 1. Start Audio Pipeline
         if not self.audio_pipeline.start():
@@ -88,12 +88,12 @@ class OmniTranslateOrchestrator:
         if self.visual_pipeline and self.enable_ocr:
             self.visual_pipeline.start()
 
-        logger.info("OmniTranslate Orchestrator fully running.")
+        logger.info("VoxGlance Orchestrator fully running.")
 
     def stop(self) -> None:
         """Clean shutdown of all pipelines and controllers."""
         self._is_active = False
-        logger.info("Stopping OmniTranslate Orchestrator...")
+        logger.info("Stopping VoxGlance Orchestrator...")
 
         if self.audio_pipeline:
             self.audio_pipeline.stop()
@@ -104,4 +104,8 @@ class OmniTranslateOrchestrator:
         if self.memory_controller:
             self.memory_controller.shutdown()
 
-        logger.info("OmniTranslate Orchestrator stopped cleanly.")
+        logger.info("VoxGlance Orchestrator stopped cleanly.")
+
+
+# Backward compatibility alias
+OmniTranslateOrchestrator = VoxGlanceOrchestrator

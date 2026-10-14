@@ -1,10 +1,10 @@
 # KẾ HOẠCH TỔNG THỂ DỰ ÁN (PROJECT MASTER PLAN)
-## Dự án: OmniTranslate – Real-time Multimodal Live Translator
+## Dự án: VoxGlance – Real-time Multimodal Live Translator
 
 ---
 
 ## 1. TỔNG QUAN DỰ ÁN
-* **Tên mã dự án:** `OmniTranslate`
+* **Tên mã dự án:** `VoxGlance`
 * **Mục tiêu cốt lõi:** Xây dựng giải pháp dịch thuật trực quan đa phương thức thời gian thực, đồng thời tiếp nhận và dịch cả luồng hiển thị (Visual OCR) lẫn âm thanh hệ thống (Speech-to-Subtitles), tối ưu hóa trải nghiệm tương tự YouTube Live Caption với độ trễ cực thấp.
 * **Thời gian thực hiện dự kiến:** 12 tuần (3 tháng).
 * **Ràng buộc tài nguyên chính:** Tổng mức tiêu thụ VRAM trên GPU duy trì nghiêm ngặt dưới **1GB VRAM**, độ trễ tổng thể $\le 800\text{ms}$.

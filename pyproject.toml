@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "omni-translate"
+name = "voxglance"
 version = "0.1.0"
-description = "Real-time Multimodal Live Translator (Audio & Screen OCR) with Low Latency and Strict VRAM Cap"
+description = "VoxGlance: Real-time Multimodal Live Translator (Audio & Screen OCR) with Low Latency and Strict VRAM Cap"
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
 dependencies = [

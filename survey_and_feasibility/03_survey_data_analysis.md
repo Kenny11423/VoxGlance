@@ -1,5 +1,5 @@
 # PHÂN TÍCH NHU CẦU NGƯỜI DÙNG & TỔNG HỢP DỮ LIỆU THỰC NGHIỆM TRỰC TUYẾN
-## Dự án: OmniTranslate – Real-time Multimodal Live Translator
+## Dự án: VoxGlance – Real-time Multimodal Live Translator
 ### Nguồn căn cứ: Steam Hardware Survey, Microsoft Docs, DeepL Pricing, OpenAI Whisper Tracker, Voz & Tinh Tế Communities
 
 ---
@@ -52,9 +52,9 @@ pie title Phân bổ Dung lượng VRAM của Card Đồ họa (Steam Hardware S
   * Nếu phần mềm dịch nền ngốn trên $1.2\text{GB} - 1.5\text{GB}$ VRAM, Windows buộc phải đẩy bộ nhớ GPU tràn sang RAM hệ thống (Shared VRAM Paging), gây hiện tượng tụt giảm khung hình thảm hại (Severe FPS Drops từ 60 FPS xuống dưới 20 FPS) và làm đơ giật hệ thống.
 
 > [!IMPORTANT]
-> **Xác thực Kỹ thuật của OmniTranslate:**
+> **Xác thực Kỹ thuật của VoxGlance:**
 > Yêu cầu kiểm soát mức chiếm dụng VRAM **$< 1\text{GB}$** của dự án là hoàn toàn chuẩn xác và bắt buộc.
-> Nhờ chuyển đổi mô hình sang định dạng **CTranslate2 FP16** và phối hợp Whisper Base + Helsinki Opus-MT, tổng mức tiêu thụ VRAM đo lường thực tế của OmniTranslate chỉ đạt **~680MB**, giúp ứng dụng hoạt động êm ái cùng lúc với game nặng mà không làm tụt bất kỳ khung hình nào.
+> Nhờ chuyển đổi mô hình sang định dạng **CTranslate2 FP16** và phối hợp Whisper Base + Helsinki Opus-MT, tổng mức tiêu thụ VRAM đo lường thực tế của VoxGlance chỉ đạt **~680MB**, giúp ứng dụng hoạt động êm ái cùng lúc với game nặng mà không làm tụt bất kỳ khung hình nào.
 
 ---
 
@@ -72,13 +72,13 @@ Qua khảo sát các thớt thảo luận thực tế tại **Voz.vn** (*"Hỏi 
 ```mermaid
 xychart-beta
     title "So sánh Độ trễ toàn trình giữa các giải pháp thực tế (Milli-giây)"
-    x-axis ["OmniTranslate (On-device)", "Ngưỡng bám khẩu hình", "Translumo (OCR Cloud)", "Capture2Text + API", "YouTube Auto-Translate"]
+    x-axis ["VoxGlance (On-device)", "Ngưỡng bám khẩu hình", "Translumo (OCR Cloud)", "Capture2Text + API", "YouTube Auto-Translate"]
     y-axis "Độ trễ trung bình (ms)" 0 --> 4000
     bar [365, 500, 1850, 2600, 3400]
 ```
 
 ### 3.1. Tổng hợp Các Điểm Đau Cốt Lõi của Người Dùng
-1. **Độ trễ quá lớn ($> 2.0$ giây):** Người nói đã chuyển sang câu khác thì phụ đề câu cũ mới hiện ra, làm mất hoàn toàn kết nối cảm xúc và thông tin thời gian thực. Ngưỡng độ trễ tối đa để người dùng cảm thấy "bám sát khẩu hình nhân vật" là **$\le 500\text{ms}$** (OmniTranslate đạt **~365ms**).
+1. **Độ trễ quá lớn ($> 2.0$ giây):** Người nói đã chuyển sang câu khác thì phụ đề câu cũ mới hiện ra, làm mất hoàn toàn kết nối cảm xúc và thông tin thời gian thực. Ngưỡng độ trễ tối đa để người dùng cảm thấy "bám sát khẩu hình nhân vật" là **$\le 500\text{ms}$** (VoxGlance đạt **~365ms**).
 2. **"Điếc" âm thanh:** $100\%$ các công cụ dịch game phổ biến hiện nay (Translumo, MORT, Capture2Text) chỉ dựa vào OCR văn bản hiển thị trên màn hình. Khi nhân vật nói chuyện không có phụ đề chữ (Cutscene, lồng tiếng điện ảnh, livestream), các công cụ này hoàn toàn vô dụng.
 3. **Màn hình hiển thị song ngữ thừa thãi gây rối mắt:** Người dùng xem phim hoặc chơi game chỉ muốn nắm bắt nhanh nội dung tiếng Việt. Việc các extension dịch trình duyệt hiện cả 2 dòng tiếng Anh và tiếng Việt khiến mắt phải đảo liên tục, gây mỏi mắt và tăng tải nhận thức (Cognitive Overload).
 4. **Phụ đề trôi nhanh không kịp đọc:** Phụ đề đơn dòng biến mất chỉ sau 1–2 giây khiến người xem không đọc kịp các thuật ngữ dài hoặc câu thoại phức tạp.
@@ -94,7 +94,7 @@ Một trong những vấn đề kỹ thuật nan giải nhất của các mô h�
   * Decoder tự rơi vào vòng lặp vô hạn và sinh ra các từ ma vô nghĩa: `"Thank you"`, `"I'm sorry"`, `"Subtitles by..."`, `"you"`, `"bạn"`, v.v. dù không hề có giọng nói của con người.
 * **Tác động tiêu cực tới người dùng:**
   * Màn hình liên tục nhảy các câu phụ đề rác khiến người xem phân tâm cực độ, làm giảm độ tin cậy của phần mềm xuống mức 0.
-* **Biện pháp giải quyết triệt để của OmniTranslate:**
+* **Biện pháp giải quyết triệt để của VoxGlance:**
   * **Tầng 1 (Neural Voice Activity Detection):** Tích hợp mạng nơ-ron **Silero VAD** tiền xử lý âm thanh với ngưỡng xác suất tiếng người `threshold = 0.5`. Nếu là nhạc nền thuần túy hoặc tiếng ồn môi trường, âm thanh bị loại bỏ ngay lập tức ở mức mili-giây, không chuyển vào Whisper.
   * **Tầng 2 (Whisper Parameter Tuning):** Bật cờ `vad_filter=True` và thiết lập `condition_on_previous_text=False` nhằm cắt đứt hoàn toàn chuỗi phụ thuộc ngữ cảnh lặp lại, triệt tiêu 100% hiện tượng từ ma.
 
@@ -117,8 +117,8 @@ Windows 11 Live Captions & Live Translation Specifications:
    * Hơn **$98\%$ máy tính hiện nay của người dùng Việt Nam** (đang dùng chip Intel Core Gen 10–13, AMD Ryzen 5000–7000 kết hợp card đồ họa rời NVIDIA) không thể sử dụng tính năng này của Windows.
 2. **Bỏ quên Tiếng Việt:**
    * Microsoft thiết kế Live Captions phục vụ thị trường nói tiếng Anh toàn cầu, hoàn toàn không hỗ trợ đầu ra (Target Language) là Tiếng Việt.
-3. **Cơ hội độc quyền cho OmniTranslate:**
-   * OmniTranslate tận dụng ngay card đồ họa GPU NVIDIA sẵn có của người dùng (từ GTX 1650 trở lên), không đòi hỏi NPU đắt tiền, và chuyên biệt hóa dịch thuật chất lượng cao sang **Tiếng Việt**.
+3. **Cơ hội độc quyền cho VoxGlance:**
+   * VoxGlance tận dụng ngay card đồ họa GPU NVIDIA sẵn có của người dùng (từ GTX 1650 trở lên), không đòi hỏi NPU đắt tiền, và chuyên biệt hóa dịch thuật chất lượng cao sang **Tiếng Việt**.
 
 ---
 
@@ -134,11 +134,11 @@ Theo bảng giá công khai trên trang chủ DeepL:
     $$\text{Chi phí API hàng tháng} = 120 \text{ phút} \times 30 \text{ ngày} \times 0.006\text{ USD} = 21.6\text{ USD/tháng} \approx 550.000\text{ VNĐ/tháng}$$
   * Đây là mức chi phí định kỳ quá đắt đỏ, biến mô hình đám mây trở nên bất khả thi đối với người tiêu dùng cá nhân.
 
-### 6.2. Mô hình Kinh tế Đột phá của OmniTranslate: Chi phí Vận hành = 0 Đồng
-* OmniTranslate chuyển toàn bộ gánh nặng tính toán AI về cho GPU của người dùng (Client-side Edge AI Inference).
+### 6.2. Mô hình Kinh tế Đột phá của VoxGlance: Chi phí Vận hành = 0 Đồng
+* VoxGlance chuyển toàn bộ gánh nặng tính toán AI về cho GPU của người dùng (Client-side Edge AI Inference).
 * **Chi phí server suy luận AI:** **0 VNĐ**.
 * **Định giá thương mại khả thi tại Việt Nam:**
-  * Thay vì bắt người dùng trả phí thuê bao hàng tháng (Subscription fatigue), OmniTranslate áp dụng mô hình **Bản quyền Trọn đời (Lifetime License)** với mức giá:
+  * Thay vì bắt người dùng trả phí thuê bao hàng tháng (Subscription fatigue), VoxGlance áp dụng mô hình **Bản quyền Trọn đời (Lifetime License)** với mức giá:
     * Giá niêm yết: **399.000 VNĐ** (chỉ bằng tiền mua 1 tựa game Steam trợ giá vùng Việt Nam hoặc 1.5 tháng tiền DeepL Pro).
     * Khuyến mãi Early Bird: **299.000 VNĐ**.
   * Mô hình này hoàn toàn phù hợp với thói quen tiêu dùng phần mềm bản quyền của người dùng Việt Nam (tương tự thành công của các phần mềm IDM, WinRAR, Unikey, Vietkey trước đây).
@@ -147,9 +147,9 @@ Theo bảng giá công khai trên trang chủ DeepL:
 
 ## 7. BẢNG TỔNG HỢP YÊU CẦU THIẾT KẾ SẢN PHẨM (SPECIFICATION DERIVATION)
 
-Từ các dữ liệu thực nghiệm trực tuyến đã phân tích, bộ thông số thiết kế chuẩn của OmniTranslate được xác lập như sau:
+Từ các dữ liệu thực nghiệm trực tuyến đã phân tích, bộ thông số thiết kế chuẩn của VoxGlance được xác lập như sau:
 
-| Tiêu chuẩn thiết kế | Cơ sở dữ liệu chứng minh | Thông số kỹ thuật của OmniTranslate |
+| Tiêu chuẩn thiết kế | Cơ sở dữ liệu chứng minh | Thông số kỹ thuật của VoxGlance |
 | :--- | :--- | :--- |
 | **Độ trễ toàn trình** | Nghiên cứu khẩu hình và phản xạ mắt người | $\le 500\text{ms}$ (Thực tế đạt **~365ms**) |
 | **Giới hạn bộ nhớ VRAM** | Steam Hardware Survey (VRAM 4GB của GTX 1650/RTX 2050) | $< 1.0\text{GB}$ (Thực tế đạt **~680MB**) |

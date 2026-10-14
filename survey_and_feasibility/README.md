@@ -1,5 +1,5 @@
 # BỘ TÀI LIỆU KHẢO SÁT NGƯỜI DÙNG & BÁO CÁO TÍNH KHẢ THI DỰ ÁN
-## Dự án: OmniTranslate – Real-time Multimodal Live Translator
+## Dự án: VoxGlance – Real-time Multimodal Live Translator
 ### Căn cứ thực nghiệm: Steam Hardware Survey, Windows 11 Docs, DeepL Pro, Whisper Tracker, Voz & Tinh Tế
 
 Thư mục này được tổ chức hoàn toàn độc lập với mã nguồn ứng dụng (`src/`, `configs/`, `tests/`), chứa đầy đủ các tài liệu nghiên cứu định tính, thiết kế bảng câu hỏi khảo sát, báo cáo phân tích nhu cầu thực nghiệm trực tuyến và báo cáo khả thi thương mại hóa của dự án.
@@ -33,12 +33,12 @@ survey_and_feasibility/
 * Thiết kế bảng hỏi trực tuyến chuẩn hóa phân phối trên các diễn đàn công nghệ (Voz, Tinh Tế) và cộng đồng game thủ:
   * Phần 1: Phân loại nhân khẩu học & Chi tiết GPU/VRAM máy tính.
   * Phần 2: Thói quen tiêu thụ nội dung & Điểm đau với các công cụ dịch hiện nay (Thang đo Likert 5 mức độ).
-  * Phần 3: Đánh giá các tính năng cốt lõi của OmniTranslate (Độ trễ $<0.5$s, cuộn 2 dòng, chỉ hiện tiếng Việt, Neural Silero VAD, Visual OCR).
+  * Phần 3: Đánh giá các tính năng cốt lõi của VoxGlance (Độ trễ $<0.5$s, cuộn 2 dòng, chỉ hiện tiếng Việt, Neural Silero VAD, Visual OCR).
   * Phần 4: Đo lường độ nhạy cảm về giá theo phương pháp **Van Westendorp PSM** và đo lường chỉ số **NPS (Net Promoter Score)**.
 
 ### [03. Báo Cáo Phân Tích Nhu Cầu & Dữ Liệu Thực Nghiệm Trực Tuyến (Online Empirical Analysis)](./03_survey_data_analysis.md)
 * Loại bỏ hoàn toàn số liệu giả lập, tổng hợp căn cứ từ **5 nguồn trực tuyến có thẩm quyền**:
-  * **Valve Steam Hardware Survey:** Hơn $28.5\%$ người dùng sử dụng GPU phổ thông 4GB VRAM (GTX 1650, RTX 2050/3050). Khi game chiếm 2.5GB–3.5GB, phần mềm dịch nền bắt buộc phải ăn VRAM $< 1\text{GB}$ (OmniTranslate tiêu thụ thực tế **~680MB**).
+  * **Valve Steam Hardware Survey:** Hơn $28.5\%$ người dùng sử dụng GPU phổ thông 4GB VRAM (GTX 1650, RTX 2050/3050). Khi game chiếm 2.5GB–3.5GB, phần mềm dịch nền bắt buộc phải ăn VRAM $< 1\text{GB}$ (VoxGlance tiêu thụ thực tế **~680MB**).
   * **Cộng đồng Voz, Tinh Tế, GameVN:** Phân tích điểm nghẽn của các giải pháp hiện tại: Translumo/MORT chỉ OCR hình ảnh và điếc âm thanh; phụ thuộc Cloud API dễ dính lỗi Rate Limit 429; LunaTranslator hook RAM dễ bị cấm nick vĩnh viễn.
   * **OpenAI Whisper GitHub Issues #679, #928:** Xác thực hiện tượng decoder lặp từ ma khi có nhạc nền và giải pháp Silero VAD + `condition_on_previous_text=False`.
   * **Microsoft Windows 11 Docs:** Windows Live Translation đòi hỏi Copilot+ PC trang bị NPU $\ge 40$ TOPS đắt tiền và **hoàn toàn không hỗ trợ Tiếng Việt**.

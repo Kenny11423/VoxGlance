@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""OmniTranslate: Main Application Entry Point."""
+"""VoxGlance: Main Application Entry Point."""
 
 import argparse
 import os
@@ -27,7 +27,7 @@ from src.audio.capture import AudioCaptureManager
 from src.audio.vad import SileroVAD
 from src.audio.asr import FasterWhisperEngine
 from src.core.translator import HybridTranslator
-from src.core.orchestrator import OmniTranslateOrchestrator
+from src.core.orchestrator import VoxGlanceOrchestrator
 
 
 def run_demo_overlay(config):
@@ -55,8 +55,8 @@ def run_demo_overlay(config):
     def _demo_feed():
         time.sleep(1.0)
         demo_phrases = [
-            ("Xin chào, tôi là OmniTranslate", True),
-            ("Xin chào, tôi là OmniTranslate - hệ thống dịch thuật thời gian thực", False),
+            ("Xin chào, tôi là VoxGlance", True),
+            ("Xin chào, tôi là VoxGlance - hệ thống dịch thuật thời gian thực", False),
             ("Độ trễ xử lý cực thấp dưới 800ms", False),
             ("Mức tiêu thụ VRAM luôn duy trì dưới 950MB trên GPU RTX 2050", False),
         ]
@@ -97,7 +97,7 @@ def run_live_mode(config, audio_source: str = "auto", enable_ocr: bool = True):
     from PyQt6.QtWidgets import QApplication
     from PyQt6.QtCore import QTimer
     from src.ui.overlay import TransparentOverlayWindow
-    from src.core.orchestrator import OmniTranslateOrchestrator
+    from src.core.orchestrator import VoxGlanceOrchestrator
 
     app = QApplication(sys.argv)
 
@@ -111,9 +111,9 @@ def run_live_mode(config, audio_source: str = "auto", enable_ocr: bool = True):
         enable_collision_check=config.ui.collision_detection,
     )
     overlay.show()
-    overlay.update_subtitle("🎙️ OmniTranslate đang lắng nghe... (Hãy mở video/game hoặc nói vào mic)", is_partial=True)
+    overlay.update_subtitle("🎙️ VoxGlance đang lắng nghe... (Hãy mở video/game hoặc nói vào mic)", is_partial=True)
 
-    orchestrator = OmniTranslateOrchestrator(
+    orchestrator = VoxGlanceOrchestrator(
         config=config,
         overlay=overlay,
         audio_source=audio_source,
@@ -121,7 +121,7 @@ def run_live_mode(config, audio_source: str = "auto", enable_ocr: bool = True):
     )
     orchestrator.start()
 
-    logger.info(f"OmniTranslate LIVE mode active (Audio: {audio_source}, OCR: {enable_ocr}). Press Ctrl+C to exit.")
+    logger.info(f"VoxGlance LIVE mode active (Audio: {audio_source}, OCR: {enable_ocr}). Press Ctrl+C to exit.")
 
     try:
         app.exec()
@@ -130,7 +130,7 @@ def run_live_mode(config, audio_source: str = "auto", enable_ocr: bool = True):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="OmniTranslate: Real-time Multimodal Live Translator")
+    parser = argparse.ArgumentParser(description="VoxGlance: Real-time Multimodal Live Translator")
     parser.add_argument("--mode", choices=["live", "demo", "cli", "overlay"], default="live", help="Execution mode (default: live)")
     parser.add_argument("--source", choices=["auto", "system", "mic"], default="auto", help="Audio source (system loopback, mic, or auto)")
     parser.add_argument("--ocr", action="store_true", help="Enable on-screen Visual OCR capture")
@@ -141,7 +141,7 @@ def main():
     enable_ocr = args.ocr and not args.no_ocr
 
     config = load_config(args.config)
-    logger.info(f"Loaded OmniTranslate config. Target VRAM Cap: {config.system.target_vram_mb}MB")
+    logger.info(f"Loaded VoxGlance config. Target VRAM Cap: {config.system.target_vram_mb}MB")
 
     memory = MemoryController(
         target_vram_mb=config.system.target_vram_mb,
@@ -161,7 +161,7 @@ def main():
             prefix = "🎙️ [Tạm thời]" if token.is_partial else "✅ [Chốt câu]"
             print(f"\n{prefix}: {token.text}", flush=True)
 
-        orchestrator = OmniTranslateOrchestrator(
+        orchestrator = VoxGlanceOrchestrator(
             config=config,
             overlay=None,
             audio_source=args.source,
@@ -171,7 +171,7 @@ def main():
         orchestrator.start()
 
         print("\n" + "=" * 65)
-        print("  OmniTranslate CLI Active | Đang nghe âm thanh trực tiếp")
+        print("  VoxGlance CLI Active | Đang nghe âm thanh trực tiếp")
         print("  (Hãy mở video YouTube tiếng Anh hoặc nói vào mic)")
         print("  Nhấn Ctrl+C để dừng")
         print("=" * 65 + "\n")

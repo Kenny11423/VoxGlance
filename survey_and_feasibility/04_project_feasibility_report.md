@@ -1,12 +1,12 @@
 # BÁO CÁO NGHIÊN CỨU TÍNH KHẢ THI DỰ ÁN (PROJECT FEASIBILITY STUDY REPORT)
-## Dự án: OmniTranslate – Real-time Multimodal Live Translator
+## Dự án: VoxGlance – Real-time Multimodal Live Translator
 ### Đánh giá toàn diện dựa trên Dữ liệu Thực nghiệm Trực tuyến & Benchmark Hệ thống
 
 ---
 
 ## 1. TÓM TẮT ĐIỀU HÀNH (EXECUTIVE SUMMARY)
 
-Báo cáo nghiên cứu tính khả thi này đánh giá toàn diện tiềm năng phát triển, tính khả thi kỹ thuật, hiệu quả kinh tế và chiến lược thương mại hóa của dự án phần mềm **OmniTranslate** – giải pháp dịch thuật trực quan đa phương thức thời gian thực trên máy tính cá nhân.
+Báo cáo nghiên cứu tính khả thi này đánh giá toàn diện tiềm năng phát triển, tính khả thi kỹ thuật, hiệu quả kinh tế và chiến lược thương mại hóa của dự án phần mềm **VoxGlance** – giải pháp dịch thuật trực quan đa phương thức thời gian thực trên máy tính cá nhân.
 
 ```mermaid
 flowchart TD
@@ -25,7 +25,7 @@ flowchart TD
   * Các tính năng dịch đám mây hoặc YouTube Auto-Captions có độ trễ quá lớn ($> 2.5\text{s}$), hay dịch bậy khi có nhạc nền và gây rối mắt vì hiển thị song ngữ.
   * Windows 11 Live Captions chỉ dành cho máy đắt tiền có NPU $\ge 40$ TOPS và **hoàn toàn không hỗ trợ dịch sang Tiếng Việt**.
   * DeepL Pro có chi phí thuê bao quá đắt đỏ (~2.6 triệu đồng/năm) và không hỗ trợ bắt âm thanh trực tiếp từ hệ điều hành.
-* **Đột phá công nghệ của OmniTranslate:**
+* **Đột phá công nghệ của VoxGlance:**
   1. **Độ trễ siêu tốc ($~365\text{ms} < 0.5\text{s}$):** Đạt ngưỡng đồng bộ tự nhiên theo khẩu hình nhân vật.
   2. **Trải nghiệm thị giác tối ưu:** Chỉ hiển thị duy nhất bản dịch Tiếng Việt thuần túy, cơ chế cuộn 2 dòng lưu vết 8 giây giúp người đọc không bị sót chữ.
   3. **Bộ lọc Mạng nơ-ron Silero VAD:** Triệt tiêu hoàn toàn lỗi lặp từ ma (Whisper hallucination loop) khi có nhạc nền.
@@ -52,7 +52,7 @@ Dự án hiện đang ở mức **TRL 7** (Hệ thống nguyên mẫu hoàn ch�
 
 ```mermaid
 radar
-    title "Ma trận Năng lực Kỹ thuật: OmniTranslate vs Giải pháp Thị trường"
+    title "Ma trận Năng lực Kỹ thuật: VoxGlance vs Giải pháp Thị trường"
     axes
         "Độ trễ thấp (<0.5s)"
         "Bắt âm thanh trực tiếp (Audio Sub)"
@@ -60,13 +60,13 @@ radar
         "Nhẹ máy (<1GB VRAM)"
         "Chống từ ma (VAD Filter)"
         "Bảo mật 100% On-device"
-    "OmniTranslate": [9.6, 9.8, 9.4, 9.2, 9.9, 10.0]
+    "VoxGlance": [9.6, 9.8, 9.4, 9.2, 9.9, 10.0]
     "Windows 11 Live Captions": [6.5, 9.0, 1.0, 7.5, 6.0, 9.5]
     "Translumo / MORT": [4.0, 1.0, 7.0, 8.5, 3.0, 4.0]
     "DeepL Pro + Capture2Text": [3.5, 1.0, 9.5, 9.0, 4.0, 5.0]
 ```
 
-| Tiêu chí so sánh | OmniTranslate | Windows 11 Live Captions | Translumo / MORT | LunaTranslator | DeepL Pro |
+| Tiêu chí so sánh | VoxGlance | Windows 11 Live Captions | Translumo / MORT | LunaTranslator | DeepL Pro |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Hỗ trợ dịch âm thanh trực tiếp (Audio-to-Sub)** | **CÓ (Thời gian thực)** | CÓ | **KHÔNG** (Chỉ OCR) | **KHÔNG** (Chỉ Text Hook) | **KHÔNG** (Chỉ nhập text) |
 | **Hỗ trợ dịch sang Tiếng Việt** | **CÓ (Chuyên sâu)** | **KHÔNG** (Chỉ dịch sang tiếng Anh) | CÓ (Google Scraper) | CÓ (API) | CÓ (Chất lượng cao) |
@@ -83,7 +83,7 @@ radar
 Mô hình dịch thuật truyền thống (như Otter.ai, DeepL Pro, Speak, hoặc các phần mềm gọi OpenAI Whisper API) chịu gánh nặng chi phí khổng lồ: cứ mỗi giờ người dùng nghe/dịch, nhà phát triển phải trả tiền GPU server hoặc OpenAI API ($0.006\text{ USD} / \text{phút} \approx 8.6\text{ USD} / \text{tháng / người dùng}$).
 
 > [!TIP]
-> **Đòn bẩy kinh tế của OmniTranslate:** 
+> **Đòn bẩy kinh tế của VoxGlance:** 
 > Bằng việc chuyển 100% quá trình suy luận mô hình AI (Faster-Whisper và Helsinki Opus-MT) sang thực thi trực tiếp trên GPU máy tính người dùng thông qua CTranslate2 FP16:
 > * Chi phí server suy luận AI: **0 VNĐ**.
 > * Chi phí băng thông duy trì: Rất nhỏ (chỉ tải bản cài đặt lần đầu qua Cloudflare R2 hoặc GitHub Releases CDN).
@@ -146,7 +146,7 @@ flowchart TD
 1. **Seeders & Trải nghiệm thực tế trên Voz & Tinh Tế (Tháng 1 – Tháng 2):**
    * Đăng bài viết chia sẻ giải pháp kỹ thuật, phân tích tại sao các công cụ cũ bị delay và mời 500 thành viên kỳ cựu trải nghiệm bản thử nghiệm miễn phí.
 2. **Kích hoạt Hiệu ứng Lan tỏa qua Streamers & Content Creators (Tháng 3 – Tháng 4):**
-   * Hợp tác với các Gaming Streamers trên YouTube Gaming / Twitch khi họ chơi các game mới ra mắt: phụ đề tiếng Việt của OmniTranslate hiển thị trong trẻo trên màn hình stream sẽ là minh chứng thuyết phục nhất cho hàng chục nghìn người xem.
+   * Hợp tác với các Gaming Streamers trên YouTube Gaming / Twitch khi họ chơi các game mới ra mắt: phụ đề tiếng Việt của VoxGlance hiển thị trong trẻo trên màn hình stream sẽ là minh chứng thuyết phục nhất cho hàng chục nghìn người xem.
 3. **Mở bán Chính thức & Chương trình Early Bird (Tháng 5 trở đi):**
    * Mở bán gói trọn đời 299.000 VNĐ, tích hợp thanh toán quét mã QR qua VNPAY / Momo một chạm.
 
@@ -155,7 +155,7 @@ flowchart TD
 ## 5. TÍNH KHẢ THI PHÁP LÝ & BẢO MẬT (LEGAL & PRIVACY)
 
 ### 5.1. Bản quyền Mã Nguồn & Giấy phép Thương mại
-Ngăn xếp công nghệ của OmniTranslate được xây dựng hoàn toàn trên nền tảng các thư viện mã nguồn mở có giấy phép cho phép sử dụng thương mại (Permissive Open-source Licenses):
+Ngăn xếp công nghệ của VoxGlance được xây dựng hoàn toàn trên nền tảng các thư viện mã nguồn mở có giấy phép cho phép sử dụng thương mại (Permissive Open-source Licenses):
 * **Faster-Whisper (Systran):** Giấy phép **MIT License** (Tự do phân phối và thương mại hóa).
 * **CTranslate2:** Giấy phép **MIT License**.
 * **Helsinki-NLP Opus-MT:** Giấy phép **Apache License 2.0** (Tự do sử dụng cho mục đích thương mại).
@@ -174,7 +174,7 @@ Ngăn xếp công nghệ của OmniTranslate được xây dựng hoàn toàn tr
 
 ```mermaid
 quadrantChart
-    title "Ma trận SWOT – Dự án OmniTranslate"
+    title "Ma trận SWOT – Dự án VoxGlance"
     x-axis "Điểm Yếu (Weaknesses)" --> "Điểm Mạnh (Strengths)"
     y-axis "Thách Thức (Threats)" --> "Cơ Hội (Opportunities)"
     quadrant-1 "Chiến lược Phát huy Tối đa (S - O)"
@@ -198,14 +198,14 @@ quadrantChart
 | **1. Người dùng máy tính cũ chỉ có card đồ họa Onboard (iGPU)** | Xác suất: Trung bình<br>Tác động: Thấp | Cấu hình tự động fallback sang chế độ **CPU INT8 đa luồng**. Khuyến nghị người dùng cấu hình tối thiểu có GPU rời để trải nghiệm tính năng tốt nhất. |
 | **2. Tải mô hình ban đầu (~700MB) lâu trên mạng chậm** | Xác suất: Trung bình<br>Tác động: Trung bình | Tách bộ cài: Bộ cài Launcher ban đầu chỉ nặng 20MB. Khi người dùng mở app lần đầu, Launcher sẽ tải ngầm mô hình từ mạng phân phối nội địa tốc độ cao kèm thanh hiển thị phần trăm rõ ràng. |
 | **3. Cảnh báo Windows SmartScreen "Ứng dụng không an toàn"** | Xác suất: Cao<br>Tác động: Trung bình | Đăng ký mua chứng chỉ số **EV Code Signing Certificate** trước khi phát hành chính thức để được Windows xác thực danh tính ngay lần đầu khởi chạy. |
-| **4. Nguy cơ Microsoft cập nhật tiếng Việt cho Live Captions** | Xác suất: Thấp<br>Tác động: Trung bình | Kể cả khi có tiếng Việt, Windows 11 Live Captions vẫn bị trói buộc với máy tính NPU 40 TOPS đắt tiền, và không có các tính năng chuyên biệt cho game (Overlay cuộn 2 dòng lưu 8 giây, né va chạm UI). OmniTranslate tập trung sâu vào thị trường game và tối ưu hoá giao diện. |
+| **4. Nguy cơ Microsoft cập nhật tiếng Việt cho Live Captions** | Xác suất: Thấp<br>Tác động: Trung bình | Kể cả khi có tiếng Việt, Windows 11 Live Captions vẫn bị trói buộc với máy tính NPU 40 TOPS đắt tiền, và không có các tính năng chuyên biệt cho game (Overlay cuộn 2 dòng lưu 8 giây, né va chạm UI). VoxGlance tập trung sâu vào thị trường game và tối ưu hoá giao diện. |
 
 ---
 
 ## 7. KẾT LUẬN & ĐỀ XUẤT ĐẦU TƯ (CONCLUSION & RECOMMENDATION)
 
 ### 7.1. Kết luận Khẳng định
-Dự án phần mềm **OmniTranslate** hội tụ đầy đủ các yếu tố thành công vượt bậc:
+Dự án phần mềm **VoxGlance** hội tụ đầy đủ các yếu tố thành công vượt bậc:
 1. **Tính khả thi kỹ thuật đã được chứng minh bằng mã nguồn và benchmark:** Độ trễ ~365ms, VRAM tiêu thụ thực tế ~680MB, loại bỏ triệt để từ ma bằng Silero VAD.
 2. **Nhu cầu thị trường có thực và cấp thiết:** Giải quyết trọn vẹn điểm nghẽn "điếc âm thanh" của Translumo/MORT và khoảng trống "không hỗ trợ tiếng Việt & đòi hỏi NPU" của Windows 11 Live Captions.
 3. **Hiệu quả tài chính vượt trội:** Kiến trúc Edge AI giải phóng hoàn toàn chi phí máy chủ, biên lợi nhuận ròng trên $90\%$, thời gian hoàn vốn dưới 6 tháng.

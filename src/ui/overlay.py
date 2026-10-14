@@ -39,7 +39,7 @@ class TransparentOverlayWindow(QMainWindow):
 
         self.ocr_boxes: List[VisualBoundingBox] = []
 
-        self.setWindowTitle("OmniTranslate Overlay")
+        self.setWindowTitle("VoxGlance Overlay")
         self.setStyleSheet("background: transparent;")
         self._apply_hyprland_rules()
         self._init_window_flags()
@@ -54,15 +54,15 @@ class TransparentOverlayWindow(QMainWindow):
         if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") or "Hyprland" in os.environ.get("XDG_CURRENT_DESKTOP", ""):
             if shutil.which("hyprctl"):
                 for rule in [
-                    "match:title ^(OmniTranslate Overlay)$, float on",
-                    "match:title ^(OmniTranslate Overlay)$, pin on",
-                    "match:title ^(OmniTranslate Overlay)$, no_blur on",
-                    "match:title ^(OmniTranslate Overlay)$, no_shadow on",
-                    "match:title ^(OmniTranslate Overlay)$, no_anim on",
-                    "match:title ^(OmniTranslate Overlay)$, no_initial_focus on",
-                    "match:title ^(OmniTranslate Overlay)$, no_focus on",
-                    "match:title ^(OmniTranslate Overlay)$, move 0 0",
-                    "match:title ^(OmniTranslate Overlay)$, size 100% 100%",
+                    "match:title ^(VoxGlance Overlay)$, float on",
+                    "match:title ^(VoxGlance Overlay)$, pin on",
+                    "match:title ^(VoxGlance Overlay)$, no_blur on",
+                    "match:title ^(VoxGlance Overlay)$, no_shadow on",
+                    "match:title ^(VoxGlance Overlay)$, no_anim on",
+                    "match:title ^(VoxGlance Overlay)$, no_initial_focus on",
+                    "match:title ^(VoxGlance Overlay)$, no_focus on",
+                    "match:title ^(VoxGlance Overlay)$, move 0 0",
+                    "match:title ^(VoxGlance Overlay)$, size 100% 100%",
                 ]:
                     try:
                         subprocess.run(["hyprctl", "keyword", "windowrule", rule], capture_output=True, timeout=1.0)
