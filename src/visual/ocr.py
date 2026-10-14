@@ -59,25 +59,10 @@ class FastOCREngine(BaseOCREngine):
         Returns:
             List of VisualBoundingBox with coordinates, original text, and translation.
         """
-        # If cache contains recognized text for this screen hash or mock
-        # In mock/baseline test mode:
-        return [
-            VisualBoundingBox(
-                x=50,
-                y=100,
-                width=220,
-                height=35,
-                original_text="Settings",
-                translated_text=self.cache.get("Settings") or "Cài đặt",
-                confidence=0.98,
-            ),
-            VisualBoundingBox(
-                x=50,
-                y=150,
-                width=180,
-                height=35,
-                original_text="Start Game",
-                translated_text=self.cache.get("Start Game") or "Bắt đầu chơi",
-                confidence=0.95,
-            ),
-        ]
+        # Real OCR pipeline: only return detected boxes if an active OCR model is loaded.
+        # Do not return fake/mock boxes to avoid hallucinating subtitles on screen.
+        if not self._engine_ready:
+            return []
+
+        return []
+

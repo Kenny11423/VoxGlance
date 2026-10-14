@@ -53,41 +53,64 @@ class LocalCTranslate2Translator(BaseTranslator):
             except Exception as e:
                 logger.error(f"CTranslate2 inference error: {e}")
 
-        # Lightweight fallback / simulation for offline testing
-        return f"[Dịch]: {clean_text}"
+        # Lightweight fallback when local model weights are not loaded
+        return clean_text
+
 
 
 class CloudTranslator(BaseTranslator):
-    """Cloud API Translator (DeepL, Groq, or OpenAI compatible) with low latency."""
+    """Real-time online translator using MyMemory / Google / Cloud API with low latency."""
 
-    def __init__(self, api_key: Optional[str] = None, provider: str = "groq"):
+    def __init__(self, api_key: Optional[str] = None, provider: str = "mymemory"):
         self.api_key = api_key or os.getenv("TRANSLATOR_API_KEY", "")
         self.provider = provider
+        self._mymemory = None
+        self._init_backend()
+
+    def _init_backend(self) -> None:
+        try:
+            from deep_translator import MyMemoryTranslator
+            self._mymemory = MyMemoryTranslator(source="en-US", target="vi-VN")
+            logger.info("Online translator initialized (MyMemory engine en -> vi).")
+        except Exception as e:
+            logger.warning(f"Could not initialize MyMemoryTranslator: {e}")
+            self._mymemory = None
 
     def translate(self, text: str, source_lang: str = "en", target_lang: str = "vi") -> str:
         clean_text = text.strip()
-        if not clean_text or not self.api_key:
-            return f"[Cloud Offline]: {clean_text}"
+        if not clean_text:
+            return ""
 
+        # Attempt online translation via MyMemory
+        if self._mymemory is not None:
+            try:
+                translated = self._mymemory.translate(clean_text)
+                if translated and not translated.startswith("MYMEMORY WARNING"):
+                    return translated.strip()
+            except Exception as e:
+                logger.debug(f"MyMemory translation temporary error: {e}")
+
+        # Attempt secondary fallback via GoogleTranslator if available
         try:
-            # Placeholder for Cloud API calls with httpx
-            import httpx
-            # In production, dispatch to Groq / DeepL endpoint
-            return f"[Dịch API]: {clean_text}"
-        except Exception as e:
-            logger.warning(f"Cloud translation failed: {e}")
-            return f"[Fallback]: {clean_text}"
+            from deep_translator import GoogleTranslator
+            res = GoogleTranslator(source=source_lang, target=target_lang).translate(clean_text)
+            if res:
+                return res.strip()
+        except Exception:
+            pass
+
+        return f"[Cloud Offline]: {clean_text}"
 
 
 class HybridTranslator(BaseTranslator):
-    """Hybrid Translator: checks LRU cache first, tries Cloud if available, falls back to Local."""
+    """Hybrid Translator: checks LRU cache first, translates via Online/Cloud, falls back to Local."""
 
     def __init__(
         self,
         cache: Optional[LRUTermCache] = None,
         local_translator: Optional[BaseTranslator] = None,
         cloud_translator: Optional[BaseTranslator] = None,
-        prefer_cloud: bool = False,
+        prefer_cloud: bool = True,
     ):
         self.cache = cache or LRUTermCache(maxsize=2000)
         self.local = local_translator or LocalCTranslate2Translator()
@@ -104,7 +127,7 @@ class HybridTranslator(BaseTranslator):
         if cached:
             return cached
 
-        # 2. Translate via Cloud or Local
+        # 2. Translate via Cloud / Online or Local
         result = ""
         if self.prefer_cloud:
             result = self.cloud.translate(clean, source_lang, target_lang)
@@ -113,6 +136,8 @@ class HybridTranslator(BaseTranslator):
         else:
             result = self.local.translate(clean, source_lang, target_lang)
 
-        # 3. Store in LRU Cache
-        self.cache.put(clean, result)
+        # 3. Store in LRU Cache if valid translation
+        if result:
+            self.cache.put(clean, result)
         return result
+

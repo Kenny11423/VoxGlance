@@ -27,6 +27,7 @@ class AudioStreamingPipeline:
         asr: Optional[FasterWhisperEngine] = None,
         translator: Optional[HybridTranslator] = None,
         on_subtitle: Optional[Callable[[SubtitleToken], None]] = None,
+        min_silence_chunks: int = 1,
     ):
         self.source = source
         self.sample_rate = sample_rate
@@ -36,6 +37,7 @@ class AudioStreamingPipeline:
         self.asr = asr or FasterWhisperEngine()
         self.translator = translator or HybridTranslator()
         self.on_subtitle = on_subtitle
+        self.min_silence_chunks = min_silence_chunks
 
         self.ring_buffer = AudioRingBuffer(sample_rate=sample_rate, buffer_duration_sec=10.0)
         self._is_running = False
@@ -68,31 +70,33 @@ class AudioStreamingPipeline:
         self._is_running = True
 
         # Choose capture backend:
-        # If source is 'system' or 'auto' on Linux, try PipeWire system loopback monitor
-        monitor_source = self._get_system_monitor_source() if self.source in ["system", "auto"] else None
-
-        if monitor_source and self.source != "mic":
-            logger.info(f"Using PipeWire system loopback capture: {monitor_source}")
-            cmd = [
-                "pw-record",
-                "--target", monitor_source,
-                "--rate", str(self.sample_rate),
-                "--channels", "1",
-                "--format", "f32",
-                "-",
-            ]
-            try:
-                self._capture_proc = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL,
-                    bufsize=self.chunk_samples * 4 * 10,
-                )
-                self._worker_thread = threading.Thread(target=self._pipewire_loop, daemon=True)
-                self._worker_thread.start()
-                return True
-            except Exception as e:
-                logger.warning(f"Failed to start pw-record: {e}. Falling back to sounddevice mic.")
+        # If source is 'system' or 'auto' on Linux, use PipeWire loopback capture
+        if self.source in ["system", "auto"] and sys.platform.startswith("linux"):
+            # Check if pw-record is present
+            import shutil
+            if shutil.which("pw-record"):
+                target = "@DEFAULT_MONITOR@"
+                logger.info(f"Using PipeWire system loopback capture (Target: {target})")
+                cmd = [
+                    "pw-record",
+                    "--target", target,
+                    "--rate", str(self.sample_rate),
+                    "--channels", "1",
+                    "--format", "f32",
+                    "-",
+                ]
+                try:
+                    self._capture_proc = subprocess.Popen(
+                        cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.DEVNULL,
+                        bufsize=self.chunk_samples * 4 * 10,
+                    )
+                    self._worker_thread = threading.Thread(target=self._pipewire_loop, daemon=True)
+                    self._worker_thread.start()
+                    return True
+                except Exception as e:
+                    logger.warning(f"Failed to start pw-record: {e}. Falling back to sounddevice mic.")
 
         # Fallback to sounddevice (Microphone capture)
         logger.info("Using sounddevice microphone capture.")
@@ -108,9 +112,6 @@ class AudioStreamingPipeline:
     def _pipewire_loop(self) -> None:
         """Read 16kHz float32 audio chunks directly from pw-record stdout."""
         bytes_per_chunk = self.chunk_samples * 4  # 4 bytes per float32
-        current_utterance = []
-        silence_chunks = 0
-        last_partial_time = 0.0
 
         while self._is_running and self._capture_proc and self._capture_proc.stdout:
             try:
@@ -120,6 +121,7 @@ class AudioStreamingPipeline:
                     continue
 
                 chunk = np.frombuffer(raw_bytes, dtype=np.float32)
+                chunk = np.nan_to_num(chunk, nan=0.0, posinf=0.0, neginf=0.0)
                 self._process_chunk(chunk)
             except Exception as e:
                 logger.error(f"Error in pipewire read loop: {e}")
@@ -130,9 +132,11 @@ class AudioStreamingPipeline:
         while self._is_running and self._capture_manager:
             if len(self._capture_manager.ring_buffer) >= self.chunk_samples:
                 chunk = self._capture_manager.ring_buffer.get_latest(self.chunk_samples)
+                chunk = np.nan_to_num(chunk, nan=0.0, posinf=0.0, neginf=0.0)
                 self._process_chunk(chunk)
             else:
                 time.sleep(self.chunk_ms / 2000.0)
+
 
     def _process_chunk(self, chunk: np.ndarray) -> None:
         """Core Stream-and-Revise state machine."""
@@ -166,25 +170,26 @@ class AudioStreamingPipeline:
         else:
             if self._current_utterance:
                 self._silence_chunks += 1
-                # If silence duration exceeds 250ms (1 chunk), commit final text
-                if self._silence_chunks >= 1:
+                # If silence duration exceeds min_silence_chunks, commit final text
+                if self._silence_chunks >= self.min_silence_chunks:
                     audio_data = np.concatenate(self._current_utterance)
                     utterance_duration_s = len(audio_data) / self.sample_rate
                     tokens = self.asr.transcribe(audio_data)
                     if tokens:
                         raw_text = " ".join(t.text for t in tokens).strip()
-                        translated = self.translator.translate(raw_text, source_lang="en", target_lang="vi")
-                        if translated:
-                            logger.info(f"✅ [Commit]: {raw_text} -> {translated}")
-                            if self.on_subtitle:
-                                self.on_subtitle(
-                                    SubtitleToken(
-                                        text=translated,
-                                        is_partial=False,
-                                        start_time=0.0,
-                                        end_time=utterance_duration_s,
+                        if raw_text:
+                            translated = self.translator.translate(raw_text, source_lang="en", target_lang="vi")
+                            if translated:
+                                logger.info(f"✅ [Commit]: {raw_text} -> {translated}")
+                                if self.on_subtitle:
+                                    self.on_subtitle(
+                                        SubtitleToken(
+                                            text=translated,
+                                            is_partial=False,
+                                            start_time=0.0,
+                                            end_time=utterance_duration_s,
+                                        )
                                     )
-                                )
                     # Reset buffer for next sentence
                     self._current_utterance.clear()
                     self._silence_chunks = 0

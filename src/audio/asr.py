@@ -89,10 +89,13 @@ class FasterWhisperEngine:
                     end_time=float(len(audio) / 16000.0),
                 )
             ]
+        clean_audio = np.nan_to_num(audio, nan=0.0, posinf=0.0, neginf=0.0)
+        if len(clean_audio) == 0:
+            return []
 
         try:
             segments, info = self.model.transcribe(
-                audio,
+                clean_audio,
                 language=language if language != "auto" else None,
                 beam_size=beam_size,
                 word_timestamps=True,

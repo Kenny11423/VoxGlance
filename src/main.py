@@ -133,9 +133,12 @@ def main():
     parser = argparse.ArgumentParser(description="OmniTranslate: Real-time Multimodal Live Translator")
     parser.add_argument("--mode", choices=["live", "demo", "cli", "overlay"], default="live", help="Execution mode (default: live)")
     parser.add_argument("--source", choices=["auto", "system", "mic"], default="auto", help="Audio source (system loopback, mic, or auto)")
-    parser.add_argument("--no-ocr", action="store_true", help="Disable on-screen OCR capture")
+    parser.add_argument("--ocr", action="store_true", help="Enable on-screen Visual OCR capture")
+    parser.add_argument("--no-ocr", action="store_true", help="Force disable on-screen Visual OCR capture")
     parser.add_argument("--config", default=None, help="Path to config YAML")
     args = parser.parse_args()
+
+    enable_ocr = args.ocr and not args.no_ocr
 
     config = load_config(args.config)
     logger.info(f"Loaded OmniTranslate config. Target VRAM Cap: {config.system.target_vram_mb}MB")
@@ -148,11 +151,11 @@ def main():
     logger.info(f"Current VRAM: {vram_status.used_mb:.1f}MB / {config.system.target_vram_mb}MB (Status: {'SAFE' if vram_status.is_safe else 'ALERT'})")
 
     if args.mode == "live":
-        run_live_mode(config, audio_source=args.source, enable_ocr=not args.no_ocr)
+        run_live_mode(config, audio_source=args.source, enable_ocr=enable_ocr)
     elif args.mode in ["demo", "overlay"]:
         run_demo_overlay(config)
     else:
-        logger.info(f"CLI mode started (Audio Source: {args.source}). Listening to audio stream...")
+        logger.info(f"CLI mode started (Audio Source: {args.source}, OCR: {enable_ocr}). Listening to audio stream...")
 
         def _cli_subtitle(token):
             prefix = "🎙️ [Tạm thời]" if token.is_partial else "✅ [Chốt câu]"
@@ -162,7 +165,7 @@ def main():
             config=config,
             overlay=None,
             audio_source=args.source,
-            enable_ocr=not args.no_ocr,
+            enable_ocr=enable_ocr,
         )
         orchestrator.audio_pipeline.on_subtitle = _cli_subtitle
         orchestrator.start()

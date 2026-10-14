@@ -47,18 +47,21 @@ class SileroVAD:
         if len(audio_chunk) == 0:
             return VADResult(is_speech=False, confidence=0.0, rms_energy=0.0)
 
+        # Sanitize NaNs/infs often present in PipeWire startup/device transitions
+        clean_chunk = np.nan_to_num(audio_chunk, nan=0.0, posinf=0.0, neginf=0.0)
+
         # Calculate Root Mean Square (RMS) energy
-        rms = float(np.sqrt(np.mean(audio_chunk ** 2)))
+        rms = float(np.sqrt(np.mean(clean_chunk ** 2)))
         
         # Calculate Zero Crossing Rate (ZCR) to distinguish human speech from continuous hum/noise
-        zero_crossings = np.nonzero(np.diff(audio_chunk > 0))[0]
-        zcr = len(zero_crossings) / len(audio_chunk) if len(audio_chunk) > 0 else 0.0
+        zero_crossings = np.nonzero(np.diff(clean_chunk > 0))[0]
+        zcr = len(zero_crossings) / len(clean_chunk) if len(clean_chunk) > 0 else 0.0
 
-        # Typical human speech has RMS > 0.015 and ZCR in range [0.02, 0.40]
-        rms_speech_threshold = 0.015
+        # Sensitive speech threshold for online video/YouTube audio (RMS >= 0.005)
+        rms_speech_threshold = 0.005
         
         confidence = min(rms / (rms_speech_threshold * 2.0), 1.0)
-        is_speech = (rms >= rms_speech_threshold) and (0.01 <= zcr <= 0.45)
+        is_speech = (rms >= rms_speech_threshold) and (0.005 <= zcr <= 0.60)
 
         return VADResult(
             is_speech=is_speech,
