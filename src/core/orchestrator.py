@@ -78,6 +78,9 @@ class VoxGlanceOrchestrator:
 
     def _handle_ocr_boxes(self, boxes) -> None:
         """Route OCR bounding boxes to the transparent overlay."""
+        if boxes:
+            preview = [f"'{b.original_text}' -> '{b.translated_text}'" for b in boxes[:3]]
+            logger.info(f"✨ [Visual Live] Đã phát hiện & dịch {len(boxes)} cụm chữ: {', '.join(preview)}")
         if self.overlay:
             self.overlay.update_ocr_boxes(boxes)
 

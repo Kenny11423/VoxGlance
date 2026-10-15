@@ -288,5 +288,19 @@ class AudioStreamingPipeline:
             except Exception:
                 pass
 
-        logger.info("AudioStreamingPipeline stopped.")
+        if self._capture_thread and self._capture_thread.is_alive():
+            try:
+                self._capture_thread.join(timeout=0.5)
+            except Exception:
+                pass
+            self._capture_thread = None
+
+        if self._process_thread and self._process_thread.is_alive():
+            try:
+                self._process_thread.join(timeout=0.5)
+            except Exception:
+                pass
+            self._process_thread = None
+
+        logger.info("AudioStreamingPipeline stopped cleanly.")
 

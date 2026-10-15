@@ -1,6 +1,10 @@
-"""Cross-platform Screen Capture module with fallback backends."""
+"""Cross-platform Screen Capture module with native Wayland (grim) and Windows/X11 (mss) backends."""
 
 from abc import ABC, abstractmethod
+import io
+import os
+import shutil
+import subprocess
 from typing import Optional, Tuple
 import numpy as np
 from loguru import logger
@@ -11,7 +15,7 @@ class BaseScreenCapture(ABC):
 
     @abstractmethod
     def grab(self, monitor_index: int = 1, bbox: Optional[Tuple[int, int, int, int]] = None) -> np.ndarray:
-        """Capture screen region as RGB/RGBA numpy array."""
+        """Capture screen region as RGB numpy array."""
         pass
 
     @abstractmethod
@@ -20,8 +24,49 @@ class BaseScreenCapture(ABC):
         pass
 
 
+class WaylandGrimScreenCapture(BaseScreenCapture):
+    """High-speed native screen capture for Wayland compositors (Hyprland, Sway) using grim."""
+
+    def __init__(self):
+        self._grim_path = shutil.which("grim")
+        if not self._grim_path:
+            raise RuntimeError("grim is not installed on system")
+        logger.info(f"WaylandGrimScreenCapture initialized using {self._grim_path} (Native Wayland backend active).")
+
+    def grab(self, monitor_index: int = 1, bbox: Optional[Tuple[int, int, int, int]] = None) -> np.ndarray:
+        try:
+            cmd = [self._grim_path, "-l", "0"]  # Level 0 compression for sub-50ms speed
+            if bbox is not None:
+                x, y, w, h = bbox
+                cmd.extend(["-g", f"{x},{y} {w}x{h}"])
+            cmd.append("-")
+
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=2.0)
+            if res.returncode == 0 and res.stdout:
+                # Fast path: decode via OpenCV if available
+                try:
+                    import cv2
+                    arr_bgr = cv2.imdecode(np.frombuffer(res.stdout, np.uint8), cv2.IMREAD_COLOR)
+                    if arr_bgr is not None:
+                        return arr_bgr[:, :, [2, 1, 0]]  # BGR -> RGB
+                except Exception:
+                    pass
+
+                # Fallback to PIL
+                from PIL import Image
+                img = Image.open(io.BytesIO(res.stdout))
+                return np.array(img.convert("RGB"))
+        except Exception as e:
+            logger.debug(f"Wayland grim capture error: {e}")
+
+        return np.zeros((720, 1280, 3), dtype=np.uint8)
+
+    def close(self) -> None:
+        pass
+
+
 class MSSScreenCapture(BaseScreenCapture):
-    """Fast cross-platform screen capture using python-mss."""
+    """Cross-platform screen capture using python-mss (Windows and Linux X11)."""
 
     def __init__(self):
         try:
@@ -34,11 +79,9 @@ class MSSScreenCapture(BaseScreenCapture):
 
     def grab(self, monitor_index: int = 1, bbox: Optional[Tuple[int, int, int, int]] = None) -> np.ndarray:
         if self._sct is None:
-            # Return empty black frame fallback
             return np.zeros((720, 1280, 3), dtype=np.uint8)
 
         if bbox is not None:
-            # bbox: (left, top, width, height)
             region = {
                 "left": bbox[0],
                 "top": bbox[1],
@@ -51,7 +94,6 @@ class MSSScreenCapture(BaseScreenCapture):
             region = monitors[idx]
 
         screenshot = self._sct.grab(region)
-        # Convert BGRA to RGB
         img_np = np.array(screenshot, dtype=np.uint8)
         if img_np.shape[2] == 4:
             img_rgb = img_np[:, :, [2, 1, 0]]  # BGRA -> RGB
@@ -69,5 +111,16 @@ class MSSScreenCapture(BaseScreenCapture):
 
 
 def create_screen_capture(backend: str = "auto") -> BaseScreenCapture:
-    """Factory function for screen capture implementations."""
+    """Factory function: automatically detects Wayland (grim) or X11/Windows (mss)."""
+    # 1. Wayland auto-detection
+    is_wayland = bool(os.environ.get("WAYLAND_DISPLAY") or os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"))
+    has_grim = bool(shutil.which("grim"))
+
+    if (backend == "wayland" or (backend == "auto" and is_wayland)) and has_grim:
+        try:
+            return WaylandGrimScreenCapture()
+        except Exception as e:
+            logger.warning(f"Could not initialize WaylandGrimScreenCapture: {e}. Falling back to MSS.")
+
+    # 2. Default X11 / Windows capture
     return MSSScreenCapture()

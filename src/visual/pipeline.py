@@ -72,20 +72,13 @@ class VisualStreamingPipeline:
                     raw_boxes = self.ocr_engine.detect_and_recognize(frame)
 
                     if raw_boxes:
-                        # Translate local coordinates to absolute screen coordinates if ROI is set
-                        if self.roi:
-                            offset_x, offset_y = self.roi[0], self.roi[1]
-                            for b in raw_boxes:
-                                b.x += offset_x
-                                b.y += offset_y
-
                         # 2. Smart Sentence Stitching (group lines to prevent fragmented translation)
                         if self.enable_stitching:
                             processed_boxes = self.stitcher.stitch(raw_boxes)
                         else:
                             processed_boxes = raw_boxes
 
-                        # 3. Multilingual Translation & Aesthetic Styling
+                        # 3. Multilingual Translation & Aesthetic Styling on local frame
                         for box in processed_boxes:
                             if not box.translated_text or box.translated_text == box.original_text:
                                 box.translated_text = self.translator.translate(
@@ -93,8 +86,15 @@ class VisualStreamingPipeline:
                                     source_lang=getattr(box, "detected_lang", "auto"),
                                     target_lang="vi",
                                 )
-                            # 4. Apply In-place Aesthetic Styling (Background sampling & Font Auto-scaling)
+                            # Sample background & compute font size while coordinates match local frame
                             apply_aesthetic_styling(box, frame=frame)
+
+                        # 4. Offset box coordinates to absolute screen position if ROI was used
+                        if self.roi:
+                            offset_x, offset_y = self.roi[0], self.roi[1]
+                            for b in processed_boxes:
+                                b.x += offset_x
+                                b.y += offset_y
 
                         if self.on_boxes:
                             self.on_boxes(processed_boxes)

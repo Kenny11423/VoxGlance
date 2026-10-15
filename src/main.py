@@ -91,12 +91,33 @@ def run_demo_overlay(config):
     sys.exit(app.exec())
 
 
-def run_visual_mode(config, roi=None):
+def run_visual_mode(config, roi=None, interactive=False):
     """Run dedicated On-Screen In-Place Visual Live Translator for Game and Documents."""
+    import shutil
+    import subprocess
     from PyQt6.QtWidgets import QApplication
     from PyQt6.QtCore import QTimer
     from src.ui.overlay import TransparentOverlayWindow
     from src.ui.region_selector import RegionSelectorWidget
+
+    active_roi = roi
+
+    # If interactive selection is requested, trigger selection tool
+    if interactive and not active_roi:
+        slurp_path = shutil.which("slurp")
+        if slurp_path and os.environ.get("WAYLAND_DISPLAY"):
+            logger.info("👉 Hãy dùng chuột kéo chọn vùng khung thoại trên màn hình (Slurp)...")
+            try:
+                res = subprocess.run([slurp_path], stdout=subprocess.PIPE, text=True, timeout=30.0)
+                if res.returncode == 0 and res.stdout.strip():
+                    # Format e.g. "100,200 400x300"
+                    raw = res.stdout.strip()
+                    parts = raw.replace(",", " ").replace("x", " ").split()
+                    if len(parts) == 4:
+                        active_roi = (int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3]))
+                        logger.info(f"✅ Đã chọn vùng ROI: {active_roi}")
+            except Exception as e:
+                logger.warning(f"Lỗi khi chọn vùng bằng slurp: {e}")
 
     app = QApplication(sys.argv)
 
@@ -110,6 +131,11 @@ def run_visual_mode(config, roi=None):
         enable_collision_check=config.ui.collision_detection,
     )
     overlay.show()
+    overlay.raise_()
+
+    # Initial banner on screen to confirm active status
+    banner_text = f"👁️ Dịch trực quan đang chạy | Vùng: {active_roi if active_roi else 'Toàn màn hình'}"
+    overlay.update_subtitle(banner_text, is_partial=False)
 
     orchestrator = VoxGlanceOrchestrator(
         config=config,
@@ -117,15 +143,15 @@ def run_visual_mode(config, roi=None):
         enable_audio=False,  # Audio off in visual-only mode
         enable_ocr=True,
     )
-    if roi:
-        orchestrator.set_roi(roi)
+    if active_roi:
+        orchestrator.set_roi(active_roi)
 
     orchestrator.start()
 
     logger.info("=" * 65)
     logger.info("  VISUAL IN-PLACE LIVE TRANSLATOR ACTIVE")
     logger.info("  Chế độ dịch trực quan thay thế tại chỗ cho Game & Tài liệu.")
-    logger.info(f"  Vùng quét (ROI): {roi if roi else 'Toàn màn hình (Full Screen)'}")
+    logger.info(f"  Vùng quét (ROI): {active_roi if active_roi else 'Toàn màn hình (Full Screen)'}")
     logger.info("  Nhấn Ctrl+C trong terminal để thoát.")
     logger.info("=" * 65)
 
@@ -184,6 +210,7 @@ def main():
     parser.add_argument("--ocr", action="store_true", help="Enable on-screen Visual OCR capture")
     parser.add_argument("--no-ocr", action="store_true", help="Force disable on-screen Visual OCR capture")
     parser.add_argument("--roi", nargs=4, type=int, metavar=("X", "Y", "W", "H"), help="Set custom Region of Interest (x y width height)")
+    parser.add_argument("-i", "--interactive", "--select-roi", action="store_true", help="Interactive drag-and-drop ROI selection")
     parser.add_argument("--config", default=None, help="Path to config YAML")
     args = parser.parse_args()
 
@@ -201,7 +228,7 @@ def main():
     logger.info(f"Current VRAM: {vram_status.used_mb:.1f}MB / {config.system.target_vram_mb}MB (Status: {'SAFE' if vram_status.is_safe else 'ALERT'})")
 
     if args.mode == "visual":
-        run_visual_mode(config, roi=roi_tuple)
+        run_visual_mode(config, roi=roi_tuple, interactive=args.interactive)
     elif args.mode == "live":
         run_live_mode(config, audio_source=args.source, enable_ocr=enable_ocr)
     elif args.mode in ["demo", "overlay"]:
