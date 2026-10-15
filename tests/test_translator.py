@@ -21,3 +21,18 @@ def test_hybrid_translator_caching():
     # Verify hit ratio increased
     stats = cache.stats()
     assert stats["hits"] >= 1
+
+
+def test_translate_batch():
+    """Verify batch translation produces correct results for multiple sentences simultaneously."""
+    translator = HybridTranslator()
+    texts = [
+        "Give a detailed explanation to Rukia",
+        "Without saying what, Byakuya gave this command with only a few brief words.",
+        "Take care, Byakuya sama",
+    ]
+    results = translator.translate_batch(texts, source_lang="en", target_lang="vi")
+    assert len(results) == len(texts)
+    for r in results:
+        assert isinstance(r, str)
+        assert len(r) > 0

@@ -15,6 +15,8 @@ from src.core.ipc import VisualBoundingBox
 from src.core.memory import MemoryController
 
 
+import re
+
 VIETNAMESE_ACCENTED_CHARS = set(
     "àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ"
     "ÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴĐ"
@@ -26,9 +28,14 @@ SYSTEM_LOG_PATTERNS = [
     "LocalCTranslate2", "Orchestrator", "MemoryController", "Threshold:",
     "VRAM", "NVML", "WaylandGrim", "subtitles_queue", "visual_boxes_queue",
     "det_limit_side_len", ".py:", ".py ", "~/.venv", "venv/bin",
+    "DOWNLOAD", "COMPLETE", "RECONSTRUCTION", "INITIALIZ",
+    "RUN_VISUAL", "MAIN.PY", "GRIM", "SLURP",
     "%18%", "°C()", "GB", "MB", "FPS", "CPU", "GPU", "RAM",
     "tumblr.com", "http://", "https://", "www."
 ]
+
+TIMESTAMP_RE = re.compile(r"(\d{4}-\d{2}-\d{2}|\d{2}:\d{2}:\d{2})")
+TELEMETRY_RE = re.compile(r"(\d+%\s*\+*\s*\d+%|\d+\s*°?C|\d+\.?\d*\s*(GB|MB|FPS))")
 
 
 def is_noise_or_self_rendered(text: str) -> bool:
@@ -41,15 +48,19 @@ def is_noise_or_self_rendered(text: str) -> bool:
     if any(c in VIETNAMESE_ACCENTED_CHARS for c in s):
         return True
 
-    # 2. Skip if text contains terminal log / program telemetry artifacts
+    # 2. Skip if text contains ISO timestamps or system telemetry
+    if TIMESTAMP_RE.search(s) or TELEMETRY_RE.search(s):
+        return True
+
+    # 3. Skip if text contains terminal log / program telemetry artifacts
     s_upper = s.upper()
     for pattern in SYSTEM_LOG_PATTERNS:
         if pattern.upper() in s_upper:
             return True
 
-    # 3. Skip purely numeric or punctuation noise
-    alpha_chars = sum(1 for c in s if c.isalnum() or '\u4e00' <= c <= '\u9fff' or '\u3040' <= c <= '\u30ff' or '\uac00' <= c <= '\ud7af')
-    if alpha_chars < 2 and len(s) > 1:
+    # 4. Skip purely numeric, isolated digits, or punctuation noise (e.g. "23 88 27", "108", "0568")
+    letters = sum(1 for c in s if c.isalpha() or '\u4e00' <= c <= '\u9fff' or '\u3040' <= c <= '\u30ff' or '\uac00' <= c <= '\ud7af')
+    if letters < 2 and len(s) > 1:
         return True
 
     return False

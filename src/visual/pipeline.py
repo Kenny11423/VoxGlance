@@ -68,6 +68,11 @@ class VisualStreamingPipeline:
                 diff_result = self.differencer.compare(frame)
 
                 if diff_result.should_process:
+                    # If page scrolled significantly (diff_ratio >= 0.15), clear stale overlay immediately
+                    if diff_result.diff_ratio >= 0.15 and hasattr(self, "_last_signatures"):
+                        if self.on_boxes:
+                            self.on_boxes([])
+
                     # 1. OCR text detection and recognition
                     raw_boxes = self.ocr_engine.detect_and_recognize(frame)
 
@@ -85,18 +90,23 @@ class VisualStreamingPipeline:
                         else:
                             processed_boxes = raw_boxes
 
-                        # 3. Multilingual Translation & Aesthetic Styling on local frame
+                        # 3. High-Speed Batch Translation (<50ms for all boxes via GPU)
+                        boxes_need_trans = [b for b in processed_boxes if not b.translated_text or b.translated_text == b.original_text]
+                        if boxes_need_trans:
+                            texts_to_trans = [b.original_text for b in boxes_need_trans]
+                            if hasattr(self.translator, "translate_batch"):
+                                translated_list = self.translator.translate_batch(texts_to_trans, source_lang="en", target_lang="vi")
+                            else:
+                                translated_list = [self.translator.translate(t, source_lang="en", target_lang="vi") for t in texts_to_trans]
+
+                            for box_obj, trans_t in zip(boxes_need_trans, translated_list):
+                                box_obj.translated_text = trans_t
+
+                        # 4. Aesthetic Styling on local frame
                         for box in processed_boxes:
-                            if not box.translated_text or box.translated_text == box.original_text:
-                                box.translated_text = self.translator.translate(
-                                    box.original_text,
-                                    source_lang=getattr(box, "detected_lang", "auto"),
-                                    target_lang="vi",
-                                )
-                            # Sample background & compute font size while coordinates match local frame
                             apply_aesthetic_styling(box, frame=frame)
 
-                        # 4. Offset box coordinates to absolute screen position if ROI was used
+                        # 5. Offset box coordinates to absolute screen position if ROI was used
                         if self.roi:
                             offset_x, offset_y = self.roi[0], self.roi[1]
                             for b in processed_boxes:

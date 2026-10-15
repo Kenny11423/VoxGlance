@@ -191,6 +191,9 @@ class TransparentOverlayWindow(QMainWindow):
     def update_ocr_boxes(self, boxes: List[VisualBoundingBox]) -> None:
         """Update active OCR text overlays with flicker-free stability lock and overlap suppression."""
         if not boxes:
+            if self.ocr_boxes:
+                self.ocr_boxes = []
+                self.update()
             return
 
         # 1. Deduplicate heavily overlapping or nested boxes
@@ -273,8 +276,8 @@ class TransparentOverlayWindow(QMainWindow):
         if not display_text:
             return
 
-        # 1. Background Rect & Adaptive Color
-        bg_rect = QRect(box.x, box.y, max(box.width, 30), max(box.height, 16))
+        # 1. Background Rect with slight margin expansion to cover ascenders/descenders
+        bg_rect = QRect(max(0, box.x - 2), max(0, box.y - 1), max(box.width + 4, 30), max(box.height + 2, 16))
         bg_r, bg_g, bg_b = box.bg_color if box.bg_color else (20, 24, 33)
         outline_color = getattr(box, "outline_color", None)
         alignment = getattr(box, "alignment", "left")
@@ -284,8 +287,8 @@ class TransparentOverlayWindow(QMainWindow):
         is_light_doc = luminance >= 160
 
         if is_light_doc:
-            # Flat document style: 99% opaque mask matching background, NO border pen
-            painter.setBrush(QBrush(QColor(bg_r, bg_g, bg_b, 252)))
+            # 100% opaque mask matching background, seamlessly eliminating underlying original text
+            painter.setBrush(QBrush(QColor(bg_r, bg_g, bg_b, 255)))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRect(bg_rect)
         else:
