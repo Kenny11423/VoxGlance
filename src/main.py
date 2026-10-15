@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""VoxGlance: Main Application Entry Point."""
+"""Main Application Entry Point: Real-time Multimodal Live Translator (Visual & Audio)."""
 
 import argparse
 import os
@@ -23,9 +23,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.core.config import load_config
 from src.core.memory import MemoryController
 from src.core.ipc import IPCChannels, SubtitleToken, VisualBoundingBox
-from src.audio.capture import AudioCaptureManager
-from src.audio.vad import SileroVAD
-from src.audio.asr import FasterWhisperEngine
 from src.core.translator import HybridTranslator
 from src.core.orchestrator import VoxGlanceOrchestrator
 
@@ -38,7 +35,6 @@ def run_demo_overlay(config):
 
     app = QApplication(sys.argv)
 
-    # Timer to allow Python interpreter to process Ctrl+C signals
     sig_timer = QTimer()
     sig_timer.start(250)
     sig_timer.timeout.connect(lambda: None)
@@ -55,33 +51,36 @@ def run_demo_overlay(config):
     def _demo_feed():
         time.sleep(1.0)
         demo_phrases = [
-            ("Xin chào, tôi là VoxGlance", True),
-            ("Xin chào, tôi là VoxGlance - hệ thống dịch thuật thời gian thực", False),
-            ("Độ trễ xử lý cực thấp dưới 800ms", False),
-            ("Mức tiêu thụ VRAM luôn duy trì dưới 950MB trên GPU RTX 2050", False),
+            ("Dịch thuật trực quan thời gian thực", True),
+            ("Dịch thuật trực quan thời gian thực – Thay thế chữ tại chỗ thẩm mỹ cao", False),
+            ("Không tạo hộp đen, tự động co giãn font vừa khít bounding box", False),
+            ("An toàn 100% với Anti-cheat, VRAM duy trì dưới 850MB", False),
         ]
 
         for text, is_partial in demo_phrases:
             overlay.update_subtitle(text, is_partial=is_partial)
             time.sleep(1.5)
 
-        # Demo Collision Avoidance: place an OCR box at the bottom
-        logger.info("Simulating OCR text detected at bottom screen. Subtitle will relocate to TOP!")
+        # Demo In-place Aesthetic OCR Box
         screen_w = overlay.width()
         screen_h = overlay.height()
-        box_y = int(screen_h * 0.85) - 20
+        box_y = int(screen_h * 0.75)
 
         overlay.update_ocr_boxes([
             VisualBoundingBox(
-                x=(screen_w - 400) // 2,
+                x=(screen_w - 450) // 2,
                 y=box_y,
-                width=400,
-                height=45,
-                original_text="GAME OVER / RETRY",
-                translated_text="KẾT THÚC / CHƠI LẠI",
+                width=450,
+                height=40,
+                original_text="Cast Fireball on the ancient dragon.",
+                translated_text="Thi triển Quả Cầu Lửa vào rồng cổ đại.",
+                bg_color=(25, 32, 48),
+                text_color=(255, 255, 255),
+                outline_color=(10, 10, 15),
+                font_size=13,
             )
         ])
-        overlay.update_subtitle("Phụ đề đã tự động dời lên đỉnh màn hình để không che mất chữ OCR!", False)
+        overlay.update_subtitle("Lớp che tiệp màu nền và chữ tiếng Việt tự co giãn vừa vặn!", False)
 
         time.sleep(4.0)
         logger.info("Demo complete. Overlay running. Press Ctrl+C in terminal to exit.")
@@ -92,12 +91,12 @@ def run_demo_overlay(config):
     sys.exit(app.exec())
 
 
-def run_live_mode(config, audio_source: str = "auto", enable_ocr: bool = True):
-    """Run full live multimodal translation with audio capture, OCR, and transparent overlay."""
+def run_visual_mode(config, roi=None):
+    """Run dedicated On-Screen In-Place Visual Live Translator for Game and Documents."""
     from PyQt6.QtWidgets import QApplication
     from PyQt6.QtCore import QTimer
     from src.ui.overlay import TransparentOverlayWindow
-    from src.core.orchestrator import VoxGlanceOrchestrator
+    from src.ui.region_selector import RegionSelectorWidget
 
     app = QApplication(sys.argv)
 
@@ -111,17 +110,61 @@ def run_live_mode(config, audio_source: str = "auto", enable_ocr: bool = True):
         enable_collision_check=config.ui.collision_detection,
     )
     overlay.show()
-    overlay.update_subtitle("🎙️ VoxGlance đang lắng nghe... (Hãy mở video/game hoặc nói vào mic)", is_partial=True)
+
+    orchestrator = VoxGlanceOrchestrator(
+        config=config,
+        overlay=overlay,
+        enable_audio=False,  # Audio off in visual-only mode
+        enable_ocr=True,
+    )
+    if roi:
+        orchestrator.set_roi(roi)
+
+    orchestrator.start()
+
+    logger.info("=" * 65)
+    logger.info("  VISUAL IN-PLACE LIVE TRANSLATOR ACTIVE")
+    logger.info("  Chế độ dịch trực quan thay thế tại chỗ cho Game & Tài liệu.")
+    logger.info(f"  Vùng quét (ROI): {roi if roi else 'Toàn màn hình (Full Screen)'}")
+    logger.info("  Nhấn Ctrl+C trong terminal để thoát.")
+    logger.info("=" * 65)
+
+    try:
+        app.exec()
+    finally:
+        orchestrator.stop()
+
+
+def run_live_mode(config, audio_source: str = "auto", enable_ocr: bool = True):
+    """Run full live multimodal translation with audio capture, OCR, and transparent overlay."""
+    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtCore import QTimer
+    from src.ui.overlay import TransparentOverlayWindow
+
+    app = QApplication(sys.argv)
+
+    sig_timer = QTimer()
+    sig_timer.start(250)
+    sig_timer.timeout.connect(lambda: None)
+
+    overlay = TransparentOverlayWindow(
+        font_size=config.ui.font_size,
+        subtitle_timeout_sec=config.ui.auto_hide_seconds,
+        enable_collision_check=config.ui.collision_detection,
+    )
+    overlay.show()
+    overlay.update_subtitle("🎙️ Hệ thống đang lắng nghe... (Hãy mở video/game hoặc nói vào mic)", is_partial=True)
 
     orchestrator = VoxGlanceOrchestrator(
         config=config,
         overlay=overlay,
         audio_source=audio_source,
         enable_ocr=enable_ocr,
+        enable_audio=True,
     )
     orchestrator.start()
 
-    logger.info(f"VoxGlance LIVE mode active (Audio: {audio_source}, OCR: {enable_ocr}). Press Ctrl+C to exit.")
+    logger.info(f"Multimodal LIVE mode active (Audio: {audio_source}, OCR: {enable_ocr}). Press Ctrl+C to exit.")
 
     try:
         app.exec()
@@ -130,18 +173,25 @@ def run_live_mode(config, audio_source: str = "auto", enable_ocr: bool = True):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="VoxGlance: Real-time Multimodal Live Translator")
-    parser.add_argument("--mode", choices=["live", "demo", "cli", "overlay"], default="live", help="Execution mode (default: live)")
-    parser.add_argument("--source", choices=["auto", "system", "mic"], default="auto", help="Audio source (system loopback, mic, or auto)")
+    parser = argparse.ArgumentParser(description="Real-time Multimodal Live Translator (Visual & Audio)")
+    parser.add_argument(
+        "--mode",
+        choices=["visual", "live", "demo", "cli", "overlay"],
+        default="visual",
+        help="Execution mode (default: visual - In-place Screen Translation)",
+    )
+    parser.add_argument("--source", choices=["auto", "system", "mic"], default="auto", help="Audio source")
     parser.add_argument("--ocr", action="store_true", help="Enable on-screen Visual OCR capture")
     parser.add_argument("--no-ocr", action="store_true", help="Force disable on-screen Visual OCR capture")
+    parser.add_argument("--roi", nargs=4, type=int, metavar=("X", "Y", "W", "H"), help="Set custom Region of Interest (x y width height)")
     parser.add_argument("--config", default=None, help="Path to config YAML")
     args = parser.parse_args()
 
-    enable_ocr = args.ocr and not args.no_ocr
+    enable_ocr = args.ocr or (args.mode == "visual") and not args.no_ocr
+    roi_tuple = tuple(args.roi) if args.roi else None
 
     config = load_config(args.config)
-    logger.info(f"Loaded VoxGlance config. Target VRAM Cap: {config.system.target_vram_mb}MB")
+    logger.info(f"Loaded config. Target VRAM Cap: {config.system.target_vram_mb}MB")
 
     memory = MemoryController(
         target_vram_mb=config.system.target_vram_mb,
@@ -150,7 +200,9 @@ def main():
     vram_status = memory.get_vram_info()
     logger.info(f"Current VRAM: {vram_status.used_mb:.1f}MB / {config.system.target_vram_mb}MB (Status: {'SAFE' if vram_status.is_safe else 'ALERT'})")
 
-    if args.mode == "live":
+    if args.mode == "visual":
+        run_visual_mode(config, roi=roi_tuple)
+    elif args.mode == "live":
         run_live_mode(config, audio_source=args.source, enable_ocr=enable_ocr)
     elif args.mode in ["demo", "overlay"]:
         run_demo_overlay(config)
@@ -167,12 +219,12 @@ def main():
             audio_source=args.source,
             enable_ocr=enable_ocr,
         )
-        orchestrator.audio_pipeline.on_subtitle = _cli_subtitle
+        if orchestrator.audio_pipeline:
+            orchestrator.audio_pipeline.on_subtitle = _cli_subtitle
         orchestrator.start()
 
         print("\n" + "=" * 65)
-        print("  VoxGlance CLI Active | Đang nghe âm thanh trực tiếp")
-        print("  (Hãy mở video YouTube tiếng Anh hoặc nói vào mic)")
+        print("  CLI Active | Đang nghe âm thanh trực tiếp")
         print("  Nhấn Ctrl+C để dừng")
         print("=" * 65 + "\n")
 

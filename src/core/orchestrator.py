@@ -1,6 +1,6 @@
 """Core Orchestrator: synchronizes Audio Pipeline, Visual OCR, and Transparent Overlay."""
 
-from typing import Optional
+from typing import Optional, Tuple
 from loguru import logger
 
 from src.audio.pipeline import AudioStreamingPipeline
@@ -20,12 +20,14 @@ class VoxGlanceOrchestrator:
         overlay: Optional[TransparentOverlayWindow] = None,
         audio_source: str = "auto",
         enable_ocr: bool = True,
+        enable_audio: bool = True,
         asr_engine=None,
     ):
         self.config = config
         self.overlay = overlay
         self.audio_source = audio_source
         self.enable_ocr = enable_ocr
+        self.enable_audio = enable_audio
 
         # Core modules
         self.memory_controller = MemoryController(
@@ -34,25 +36,27 @@ class VoxGlanceOrchestrator:
         )
         self.translator = HybridTranslator()
 
-        from src.audio.asr import FasterWhisperEngine
-        self.asr_engine = asr_engine or FasterWhisperEngine(
-            model_size=config.audio.asr.model_size,
-            device="cuda" if config.system.enable_cuda else "cpu",
-            compute_type=config.audio.asr.compute_type,
-            max_vram_mb=config.audio.asr.max_vram_mb,
-            memory_controller=self.memory_controller,
-        )
+        # Audio pipeline (optional if visual-only mode)
+        self.audio_pipeline = None
+        if self.enable_audio:
+            from src.audio.asr import FasterWhisperEngine
+            self.asr_engine = asr_engine or FasterWhisperEngine(
+                model_size=config.audio.asr.model_size,
+                device="cuda" if config.system.enable_cuda else "cpu",
+                compute_type=config.audio.asr.compute_type,
+                max_vram_mb=config.audio.asr.max_vram_mb,
+                memory_controller=self.memory_controller,
+            )
+            self.audio_pipeline = AudioStreamingPipeline(
+                source=self.audio_source,
+                sample_rate=config.audio.sample_rate,
+                chunk_ms=config.audio.chunk_duration_ms,
+                asr=self.asr_engine,
+                translator=self.translator,
+                on_subtitle=self._handle_subtitle,
+            )
 
-        # Pipelines
-        self.audio_pipeline = AudioStreamingPipeline(
-            source=self.audio_source,
-            sample_rate=config.audio.sample_rate,
-            chunk_ms=config.audio.chunk_duration_ms,
-            asr=self.asr_engine,
-            translator=self.translator,
-            on_subtitle=self._handle_subtitle,
-        )
-
+        # Visual pipeline
         self.visual_pipeline = VisualStreamingPipeline(
             fps_limit=config.visual.fps_limit,
             diff_threshold=config.visual.frame_diff_threshold,
@@ -61,6 +65,11 @@ class VoxGlanceOrchestrator:
         ) if self.enable_ocr else None
 
         self._is_active = False
+
+    def set_roi(self, roi: Optional[Tuple[int, int, int, int]]) -> None:
+        """Forward ROI to visual streaming pipeline."""
+        if self.visual_pipeline:
+            self.visual_pipeline.set_roi(roi)
 
     def _handle_subtitle(self, token) -> None:
         """Route subtitle token to the transparent overlay."""
@@ -78,22 +87,25 @@ class VoxGlanceOrchestrator:
             return
 
         self._is_active = True
-        logger.info(f"Starting VoxGlance Orchestrator (Audio Source: {self.audio_source}, OCR: {self.enable_ocr})...")
+        logger.info(
+            f"Starting Orchestrator (Audio: {self.enable_audio} ({self.audio_source}), Visual OCR: {self.enable_ocr})..."
+        )
 
-        # 1. Start Audio Pipeline
-        if not self.audio_pipeline.start():
-            logger.warning("Audio pipeline failed to start.")
+        # 1. Start Audio Pipeline if enabled
+        if self.audio_pipeline:
+            if not self.audio_pipeline.start():
+                logger.warning("Audio pipeline failed to start.")
 
-        # 2. Start Visual OCR Pipeline
+        # 2. Start Visual OCR Pipeline if enabled
         if self.visual_pipeline and self.enable_ocr:
             self.visual_pipeline.start()
 
-        logger.info("VoxGlance Orchestrator fully running.")
+        logger.info("Orchestrator fully running.")
 
     def stop(self) -> None:
         """Clean shutdown of all pipelines and controllers."""
         self._is_active = False
-        logger.info("Stopping VoxGlance Orchestrator...")
+        logger.info("Stopping Orchestrator...")
 
         if self.audio_pipeline:
             self.audio_pipeline.stop()
@@ -104,7 +116,7 @@ class VoxGlanceOrchestrator:
         if self.memory_controller:
             self.memory_controller.shutdown()
 
-        logger.info("VoxGlance Orchestrator stopped cleanly.")
+        logger.info("Orchestrator stopped cleanly.")
 
 
 # Backward compatibility alias

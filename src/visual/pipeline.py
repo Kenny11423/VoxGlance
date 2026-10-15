@@ -2,7 +2,7 @@
 
 import threading
 import time
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 from loguru import logger
 
 from src.core.ipc import VisualBoundingBox
@@ -28,6 +28,7 @@ class VisualStreamingPipeline:
         stitcher: Optional[SmartTextStitcher] = None,
         on_boxes: Optional[Callable[[List[VisualBoundingBox]], None]] = None,
         enable_stitching: bool = True,
+        roi: Optional[Tuple[int, int, int, int]] = None,
     ):
         self.fps_limit = max(1, fps_limit)
         self.interval = 1.0 / self.fps_limit
@@ -38,9 +39,15 @@ class VisualStreamingPipeline:
         self.stitcher = stitcher or SmartTextStitcher()
         self.on_boxes = on_boxes
         self.enable_stitching = enable_stitching
+        self.roi = roi
 
         self._is_running = False
         self._thread: Optional[threading.Thread] = None
+
+    def set_roi(self, roi: Optional[Tuple[int, int, int, int]]) -> None:
+        """Dynamically update Region of Interest (x, y, width, height)."""
+        self.roi = roi
+        logger.info(f"VisualStreamingPipeline ROI updated: {roi}")
 
     def start(self) -> bool:
         """Start the background visual in-place capture loop."""
@@ -57,7 +64,7 @@ class VisualStreamingPipeline:
         while self._is_running:
             start_time = time.time()
             try:
-                frame = self.capture.grab()
+                frame = self.capture.grab(bbox=self.roi)
                 diff_result = self.differencer.compare(frame)
 
                 if diff_result.should_process:
@@ -65,6 +72,13 @@ class VisualStreamingPipeline:
                     raw_boxes = self.ocr_engine.detect_and_recognize(frame)
 
                     if raw_boxes:
+                        # Translate local coordinates to absolute screen coordinates if ROI is set
+                        if self.roi:
+                            offset_x, offset_y = self.roi[0], self.roi[1]
+                            for b in raw_boxes:
+                                b.x += offset_x
+                                b.y += offset_y
+
                         # 2. Smart Sentence Stitching (group lines to prevent fragmented translation)
                         if self.enable_stitching:
                             processed_boxes = self.stitcher.stitch(raw_boxes)
