@@ -122,6 +122,46 @@ class VisualStreamingPipeline:
             sleep_time = max(0.01, self.interval - elapsed)
             time.sleep(sleep_time)
 
+    def trigger_now(self) -> None:
+        """Trigger an instant one-shot snapshot translation of current ROI/screen."""
+        try:
+            frame = self.capture.grab(bbox=self.roi)
+            raw_boxes = self.ocr_engine.detect_and_recognize(frame)
+            if not raw_boxes:
+                if self.on_boxes:
+                    self.on_boxes([])
+                return
+
+            if self.enable_stitching:
+                processed_boxes = self.stitcher.stitch(raw_boxes)
+            else:
+                processed_boxes = raw_boxes
+
+            boxes_need_trans = [b for b in processed_boxes if not b.translated_text or b.translated_text == b.original_text]
+            if boxes_need_trans:
+                texts = [b.original_text for b in boxes_need_trans]
+                if hasattr(self.translator, "translate_batch"):
+                    translated_list = self.translator.translate_batch(texts, source_lang="en", target_lang="vi")
+                else:
+                    translated_list = [self.translator.translate(t, source_lang="en", target_lang="vi") for t in texts]
+
+                for b, t in zip(boxes_need_trans, translated_list):
+                    b.translated_text = t
+
+            for b in processed_boxes:
+                apply_aesthetic_styling(b, frame=frame)
+
+            if self.roi:
+                ox, oy = self.roi[0], self.roi[1]
+                for b in processed_boxes:
+                    b.x += ox
+                    b.y += oy
+
+            if self.on_boxes:
+                self.on_boxes(processed_boxes)
+        except Exception as e:
+            logger.error(f"Error in instant snapshot translation: {e}")
+
     def stop(self) -> None:
         """Stop visual loop and release capture resources."""
         self._is_running = False

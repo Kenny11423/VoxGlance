@@ -19,7 +19,7 @@ class FrameDifferencer:
     the frame is skipped to save GPU OCR compute.
     """
 
-    def __init__(self, threshold: float = 0.05, pixel_tolerance: int = 15):
+    def __init__(self, threshold: float = 0.15, pixel_tolerance: int = 25):
         self.threshold = threshold
         self.pixel_tolerance = pixel_tolerance
         self.last_frame: Optional[np.ndarray] = None

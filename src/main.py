@@ -132,6 +132,9 @@ def run_visual_mode(config, roi=None, interactive=True, fullscreen=False):
     overlay.show()
     overlay.raise_()
 
+    from src.ui.floating_toolbar import MiniFloatingToolbar
+    from PyQt6.QtGui import QKeySequence, QShortcut
+
     orchestrator = VoxGlanceOrchestrator(
         config=config,
         overlay=overlay,
@@ -143,10 +146,49 @@ def run_visual_mode(config, roi=None, interactive=True, fullscreen=False):
 
     orchestrator.start()
 
+    # Callback actions for Floating Toolbar
+    def _do_snapshot():
+        if orchestrator.visual_pipeline:
+            orchestrator.visual_pipeline.trigger_now()
+
+    def _do_reselect():
+        slurp_p = shutil.which("slurp")
+        if slurp_p and os.environ.get("WAYLAND_DISPLAY"):
+            try:
+                res = subprocess.run([slurp_p], stdout=subprocess.PIPE, text=True, timeout=30.0)
+                if res.returncode == 0 and res.stdout.strip():
+                    raw = res.stdout.strip().replace(",", " ").replace("x", " ").split()
+                    if len(raw) == 4:
+                        new_roi = (int(raw[0]), int(raw[1]), int(raw[2]), int(raw[3]))
+                        orchestrator.set_roi(new_roi)
+                        _do_snapshot()
+            except Exception as e:
+                logger.warning(f"Reselect error: {e}")
+
+    is_visible = [True]
+    def _do_toggle():
+        is_visible[0] = not is_visible[0]
+        if not is_visible[0]:
+            overlay.clear_ocr_boxes()
+        else:
+            _do_snapshot()
+
+    toolbar = MiniFloatingToolbar(
+        on_translate_snapshot=_do_snapshot,
+        on_select_region=_do_reselect,
+        on_toggle_visibility=_do_toggle,
+    )
+    toolbar.show()
+    toolbar.raise_()
+
+    # Trigger initial snapshot immediately upon launch
+    QTimer.singleShot(400, _do_snapshot)
+
     logger.info("=" * 65)
     logger.info("  VISUAL IN-PLACE LIVE TRANSLATOR ACTIVE")
     logger.info("  Chế độ dịch trực quan thay thế tại chỗ cho Game & Tài liệu.")
     logger.info(f"  Vùng quét (ROI): {active_roi if active_roi else 'Toàn màn hình (Full Screen)'}")
+    logger.info("  Thanh điều khiển [⚡ Dịch Trang Này] [🎯 Chọn Vùng] [👁️ Ẩn/Hiện] đang hiển thị ở góc trên.")
     logger.info("  Nhấn Ctrl+C trong terminal để thoát.")
     logger.info("=" * 65)
 

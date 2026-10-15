@@ -95,11 +95,12 @@ class FastOCREngine(BaseOCREngine):
         """Initialize ONNX Runtime RapidOCR backend."""
         try:
             from rapidocr_onnxruntime import RapidOCR
-            # det_limit_side_len=1920 ensures 1080p full HD screens maintain pixel fidelity without downsampling
-            self._engine = RapidOCR(det_limit_side_len=1920)
+            # det_limit_side_len=1920 ensures 1080p full HD screens maintain pixel fidelity
+            # use_cls=False prevents the classifier from mistakenly flipping normal horizontal lines upside-down
+            self._engine = RapidOCR(det_limit_side_len=1920, use_cls=False)
             self._engine_ready = True
             logger.info(
-                f"FastOCREngine initialized with RapidOCR (ONNX Runtime, det_limit_side_len=1920, Threshold: {self.confidence_threshold})"
+                f"FastOCREngine initialized with RapidOCR (ONNX Runtime, det_limit_side_len=1920, use_cls=False, Threshold: {self.confidence_threshold})"
             )
         except Exception as e:
             logger.warning(f"Could not load RapidOCR: {e}. OCR will run in fallback mock mode.")
