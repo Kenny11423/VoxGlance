@@ -33,6 +33,11 @@ class VisualBoundingBox:
     text_color: Optional[tuple] = None  # RGB tuple e.g. (255, 255, 255)
     outline_color: Optional[tuple] = None  # RGB tuple for contrast outline
     font_size: int = 12  # Optimal auto-scaled font size
+    original_font_size: int = 12  # Estimated font size of original text
+    original_line_height: float = 0.0  # Height of single original line in pixels
+    line_count: int = 1  # Number of physical text lines grouped in this box
+    alignment: str = "left"  # Text alignment: 'left' or 'center'
+    font_weight: str = "medium"  # Font weight: 'normal', 'medium', or 'bold'
     is_vertical: bool = False  # Vertical text for Manga / Japanese UI
     detected_lang: str = "en"  # Detected source language code
 

@@ -15,18 +15,20 @@ class SmartTextStitcher:
 
     def __init__(
         self,
-        line_height_multiplier: float = 1.6,
+        line_height_multiplier: float = 0.65,
         horizontal_overlap_threshold: float = 0.2,
+        max_column_drift: int = 30,
     ):
         self.line_height_multiplier = line_height_multiplier
         self.horizontal_overlap_threshold = horizontal_overlap_threshold
+        self.max_column_drift = max_column_drift
 
     def stitch(
         self,
         boxes: List[VisualBoundingBox],
         detected_lang: str = "en",
     ) -> List[VisualBoundingBox]:
-        """Group and stitch fragmented bounding boxes into unified sentence boxes.
+        """Group and stitch fragmented bounding boxes into cohesive paragraph boxes.
 
         Args:
             boxes: Raw bounding boxes detected by OCR.
@@ -51,18 +53,20 @@ class SmartTextStitcher:
             last_box = current_group[-1]
 
             # Check if next_box belongs to the same paragraph / dialogue block:
-            # 1. Vertical distance is within reasonable line height threshold
+            # 1. Vertical distance is within in-paragraph line gap threshold
             avg_h = (last_box.height + next_box.height) / 2.0
             vertical_gap = next_box.y - (last_box.y + last_box.height)
 
-            # 2. Horizontal alignment check (overlap or shared column)
+            # 2. Horizontal alignment check: must share the same text column
             overlap_x1 = max(last_box.x, next_box.x)
             overlap_x2 = min(last_box.x + last_box.width, next_box.x + next_box.width)
             horizontal_overlap = max(0, overlap_x2 - overlap_x1)
             min_w = min(last_box.width, next_box.width)
 
             is_vertically_adjacent = -avg_h * 0.5 <= vertical_gap <= avg_h * self.line_height_multiplier
-            has_horizontal_alignment = (horizontal_overlap / max(1, min_w)) >= self.horizontal_overlap_threshold or abs(last_box.x - next_box.x) <= 35
+            has_horizontal_alignment = abs(last_box.x - next_box.x) <= self.max_column_drift or (
+                horizontal_overlap / max(1, min_w) >= 0.7
+            )
 
             if is_vertically_adjacent and has_horizontal_alignment:
                 current_group.append(next_box)
@@ -100,6 +104,8 @@ class SmartTextStitcher:
         combined_text = sep.join(b.original_text.strip() for b in group if b.original_text.strip())
 
         avg_conf = sum(b.confidence for b in group) / max(1, len(group))
+        line_count = len(group)
+        avg_line_h = sum(getattr(b, "original_line_height", float(b.height)) for b in group) / max(1, line_count)
 
         return VisualBoundingBox(
             x=min_x,
@@ -111,4 +117,6 @@ class SmartTextStitcher:
             confidence=avg_conf,
             timestamp=group[0].timestamp,
             detected_lang=detected_lang,
+            original_line_height=avg_line_h,
+            line_count=line_count,
         )

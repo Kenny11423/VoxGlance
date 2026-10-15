@@ -15,6 +15,46 @@ from src.core.ipc import VisualBoundingBox
 from src.core.memory import MemoryController
 
 
+VIETNAMESE_ACCENTED_CHARS = set(
+    "àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ"
+    "ÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴĐ"
+)
+
+SYSTEM_LOG_PATTERNS = [
+    "INFO", "DEBUG", "WARN", "ERROR", "CRITICAL", "Traceback",
+    "sc.core", "src.core", "src.visual", "sc.vial", "sc.line", "FastOCREngine",
+    "LocalCTranslate2", "Orchestrator", "MemoryController", "Threshold:",
+    "VRAM", "NVML", "WaylandGrim", "subtitles_queue", "visual_boxes_queue",
+    "det_limit_side_len", ".py:", ".py ", "~/.venv", "venv/bin",
+    "%18%", "°C()", "GB", "MB", "FPS", "CPU", "GPU", "RAM",
+    "tumblr.com", "http://", "https://", "www."
+]
+
+
+def is_noise_or_self_rendered(text: str) -> bool:
+    """Filter out self-rendered Vietnamese overlay text, terminal logs, and system metrics."""
+    s = text.strip()
+    if not s:
+        return True
+
+    # 1. Skip if text already contains Vietnamese diacritics (prevents OCR reading back the overlay)
+    if any(c in VIETNAMESE_ACCENTED_CHARS for c in s):
+        return True
+
+    # 2. Skip if text contains terminal log / program telemetry artifacts
+    s_upper = s.upper()
+    for pattern in SYSTEM_LOG_PATTERNS:
+        if pattern.upper() in s_upper:
+            return True
+
+    # 3. Skip purely numeric or punctuation noise
+    alpha_chars = sum(1 for c in s if c.isalnum() or '\u4e00' <= c <= '\u9fff' or '\u3040' <= c <= '\u30ff' or '\uac00' <= c <= '\ud7af')
+    if alpha_chars < 2 and len(s) > 1:
+        return True
+
+    return False
+
+
 class BaseOCREngine:
     """Abstract interface for screen OCR engines."""
 
@@ -44,10 +84,11 @@ class FastOCREngine(BaseOCREngine):
         """Initialize ONNX Runtime RapidOCR backend."""
         try:
             from rapidocr_onnxruntime import RapidOCR
-            self._engine = RapidOCR()
+            # det_limit_side_len=1920 ensures 1080p full HD screens maintain pixel fidelity without downsampling
+            self._engine = RapidOCR(det_limit_side_len=1920)
             self._engine_ready = True
             logger.info(
-                f"FastOCREngine initialized with RapidOCR (ONNX Runtime, Threshold: {self.confidence_threshold})"
+                f"FastOCREngine initialized with RapidOCR (ONNX Runtime, det_limit_side_len=1920, Threshold: {self.confidence_threshold})"
             )
         except Exception as e:
             logger.warning(f"Could not load RapidOCR: {e}. OCR will run in fallback mock mode.")
@@ -84,7 +125,7 @@ class FastOCREngine(BaseOCREngine):
                     continue
 
                 text = str(rec_res).strip()
-                if not text:
+                if not text or is_noise_or_self_rendered(text):
                     continue
 
                 # Compute axis-aligned bounding box from polygon coordinates
@@ -109,6 +150,8 @@ class FastOCREngine(BaseOCREngine):
                     translated_text="",
                     confidence=score,
                     is_vertical=is_vertical,
+                    original_line_height=float(h),
+                    line_count=1,
                 )
                 boxes.append(box)
 

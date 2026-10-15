@@ -189,24 +189,54 @@ class TransparentOverlayWindow(QMainWindow):
         self.update()
 
     def update_ocr_boxes(self, boxes: List[VisualBoundingBox]) -> None:
-        """Update active OCR text overlays with flicker-free stability lock."""
+        """Update active OCR text overlays with flicker-free stability lock and overlap suppression."""
         if not boxes:
-            # Do NOT clear existing boxes if frame had no text (keeps translation stable for reading)
             return
 
-        # Check if new boxes are virtually identical to current boxes to prevent flickering
+        # 1. Deduplicate heavily overlapping or nested boxes
+        cleaned_boxes = self._suppress_overlapping_boxes(boxes)
+
+        # 2. Check if new boxes are virtually identical to current boxes to prevent flickering
         old_texts = [b.translated_text for b in self.ocr_boxes if b.translated_text]
-        new_texts = [b.translated_text for b in boxes if b.translated_text]
+        new_texts = [b.translated_text for b in cleaned_boxes if b.translated_text]
         if old_texts and new_texts and old_texts == new_texts:
-            # Content is identical, skip repaint to prevent visual blinking
             return
 
         now = time.time()
-        for b in boxes:
+        for b in cleaned_boxes:
             b.timestamp = now
 
-        self.ocr_boxes = boxes
+        self.ocr_boxes = cleaned_boxes
         self.update()
+
+    def _suppress_overlapping_boxes(self, boxes: List[VisualBoundingBox]) -> List[VisualBoundingBox]:
+        """Remove redundant overlapping or nested bounding boxes."""
+        if len(boxes) <= 1:
+            return boxes
+
+        # Sort by area descending (largest boxes first)
+        sorted_b = sorted(boxes, key=lambda b: (b.width * b.height), reverse=True)
+        kept: List[VisualBoundingBox] = []
+
+        for b in sorted_b:
+            is_redundant = False
+            for k in kept:
+                ix1 = max(b.x, k.x)
+                iy1 = max(b.y, k.y)
+                ix2 = min(b.x + b.width, k.x + k.width)
+                iy2 = min(b.y + b.height, k.y + k.height)
+
+                if ix2 > ix1 and iy2 > iy1:
+                    inter_area = (ix2 - ix1) * (iy2 - iy1)
+                    b_area = b.width * b.height
+                    # If over 60% of b is subsumed by an existing kept box, suppress it
+                    if (inter_area / max(1, b_area)) > 0.60:
+                        is_redundant = True
+                        break
+            if not is_redundant:
+                kept.append(b)
+
+        return kept
 
     def clear_ocr_boxes(self) -> None:
         """Explicitly clear on-screen OCR boxes."""
@@ -244,33 +274,53 @@ class TransparentOverlayWindow(QMainWindow):
             return
 
         # 1. Background Rect & Adaptive Color
-        bg_rect = QRect(box.x, box.y, max(box.width, 40), max(box.height, 22))
-        
+        bg_rect = QRect(box.x, box.y, max(box.width, 30), max(box.height, 16))
         bg_r, bg_g, bg_b = box.bg_color if box.bg_color else (20, 24, 33)
-        # Alpha ~88% (225) to cleanly mask original text while softly blending with surroundings
-        painter.setBrush(QBrush(QColor(bg_r, bg_g, bg_b, 225)))
-        painter.setPen(QPen(QColor(bg_r, bg_g, bg_b, 100), 1.0))
-        painter.drawRoundedRect(bg_rect, 4, 4)
+        outline_color = getattr(box, "outline_color", None)
+        alignment = getattr(box, "alignment", "left")
 
-        # 2. Dynamic Auto-Scaled Font
+        # Check if background is light document mode (luminance >= 160)
+        luminance = 0.299 * bg_r + 0.587 * bg_g + 0.114 * bg_b
+        is_light_doc = luminance >= 160
+
+        if is_light_doc:
+            # Flat document style: 99% opaque mask matching background, NO border pen
+            painter.setBrush(QBrush(QColor(bg_r, bg_g, bg_b, 252)))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRect(bg_rect)
+        else:
+            # 3D Game / Dark mode: 88% opaque rounded mask with subtle border
+            painter.setBrush(QBrush(QColor(bg_r, bg_g, bg_b, 225)))
+            painter.setPen(QPen(QColor(bg_r, bg_g, bg_b, 100), 1.0))
+            painter.drawRoundedRect(bg_rect, 3, 3)
+
+        # 2. Dynamic Auto-Scaled Font anchored to original font size
         font_size = getattr(box, "font_size", 12)
-        font = QFont("Arial", max(8, font_size), QFont.Weight.Bold)
+        font_weight = QFont.Weight.Medium if getattr(box, "font_weight", "medium") == "medium" else QFont.Weight.Bold
+        font = QFont("Noto Sans", max(8, font_size), font_weight)
         painter.setFont(font)
 
-        # 3. Contrast Text Styling (Drop shadow / Outline + Main text)
-        text_r, text_g, text_b = box.text_color if box.text_color else (255, 255, 255)
-        out_r, out_g, out_b = box.outline_color if box.outline_color else (0, 0, 0)
+        # 3. Alignment and Text Rect layout
+        if alignment == "left":
+            align_flags = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter | Qt.TextFlag.TextWordWrap)
+            text_rect = QRect(bg_rect.x() + 4, bg_rect.y(), max(20, bg_rect.width() - 8), bg_rect.height())
+        else:
+            align_flags = int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap)
+            text_rect = bg_rect
 
-        align_flags = int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap)
+        # 4. Text Contrast Rendering
+        text_r, text_g, text_b = box.text_color if box.text_color else (20, 24, 33)
 
-        # Render subtle 1px contrast shadow for legibility on 3D game backgrounds
-        shadow_rect = QRect(box.x + 1, box.y + 1, bg_rect.width(), bg_rect.height())
-        painter.setPen(QColor(out_r, out_g, out_b, 180))
-        painter.drawText(shadow_rect, align_flags, display_text)
+        if not is_light_doc and outline_color:
+            # Render subtle 1px contrast shadow for legibility on 3D game backgrounds
+            out_r, out_g, out_b = outline_color
+            shadow_rect = QRect(text_rect.x() + 1, text_rect.y() + 1, text_rect.width(), text_rect.height())
+            painter.setPen(QColor(out_r, out_g, out_b, 180))
+            painter.drawText(shadow_rect, align_flags, display_text)
 
         # Render primary crisp text
         painter.setPen(QColor(text_r, text_g, text_b, 255))
-        painter.drawText(bg_rect, align_flags, display_text)
+        painter.drawText(text_rect, align_flags, display_text)
 
     def _draw_subtitle(self, painter: QPainter, screen_w: int, screen_h: int) -> None:
         """Draw modern streaming subtitle pill supporting 2-Line Roll-Up."""
