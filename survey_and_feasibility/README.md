@@ -11,6 +11,7 @@ Thư mục này được tổ chức hoàn toàn độc lập với mã nguồn 
 ```
 survey_and_feasibility/
 ├── README.md                                  # Hướng dẫn & Tóm lược chung bộ tài liệu
+├── Tai_Lieu_Khao_Sat_Va_Tinh_Kha_Thi_Ung_Dung_Dich_Thuat_Da_Phuong_Tien.docx # File Word tổng hợp hoàn chỉnh (Không ghi tên sản phẩm)
 ├── 01_interview_framework_and_questions.md     # Khung phỏng vấn sâu định tính & User Personas
 ├── 02_quantitative_survey_questionnaires.md    # Bảng câu hỏi khảo sát định lượng (Likert, NPS, PSM)
 ├── 03_survey_data_analysis.md                  # Báo cáo phân tích nhu cầu & Dữ liệu thực nghiệm trực tuyến
