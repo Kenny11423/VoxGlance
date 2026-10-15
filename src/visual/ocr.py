@@ -22,15 +22,17 @@ VIETNAMESE_ACCENTED_CHARS = set(
     "ÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴĐ"
 )
 
+LOG_KEYWORD_RE = re.compile(
+    r"\b(INFO|DEBUG|WARN|WARNING|ERROR|CRITICAL|Traceback|VRAM|NVML)\b",
+    re.IGNORECASE,
+)
+
 SYSTEM_LOG_PATTERNS = [
-    "INFO", "DEBUG", "WARN", "ERROR", "CRITICAL", "Traceback",
     "sc.core", "src.core", "src.visual", "sc.vial", "sc.line", "FastOCREngine",
     "LocalCTranslate2", "Orchestrator", "MemoryController", "Threshold:",
-    "VRAM", "NVML", "WaylandGrim", "subtitles_queue", "visual_boxes_queue",
+    "WaylandGrim", "subtitles_queue", "visual_boxes_queue",
     "det_limit_side_len", ".py:", ".py ", "~/.venv", "venv/bin",
-    "DOWNLOAD", "COMPLETE", "RECONSTRUCTION", "INITIALIZ",
-    "RUN_VISUAL", "MAIN.PY", "GRIM", "SLURP",
-    "%18%", "°C()", "GB", "MB", "FPS", "CPU", "GPU", "RAM",
+    "RUN_VISUAL", "MAIN.PY", "%18%", "°C()",
     "tumblr.com", "http://", "https://", "www."
 ]
 
@@ -49,7 +51,7 @@ def is_noise_or_self_rendered(text: str) -> bool:
         return True
 
     # 2. Skip if text contains ISO timestamps or system telemetry
-    if TIMESTAMP_RE.search(s) or TELEMETRY_RE.search(s):
+    if TIMESTAMP_RE.search(s) or TELEMETRY_RE.search(s) or LOG_KEYWORD_RE.search(s):
         return True
 
     # 3. Skip if text contains terminal log / program telemetry artifacts
@@ -58,12 +60,35 @@ def is_noise_or_self_rendered(text: str) -> bool:
         if pattern.upper() in s_upper:
             return True
 
-    # 4. Skip purely numeric, isolated digits, or punctuation noise (e.g. "23 88 27", "108", "0568")
+
+    # 4. Skip repeated character runs (e.g. 'uuu', 'lll', 'aaa') or syllable loops (e.g. 'ulululu')
+    if re.search(r"([a-zA-Z])\1{2,}", s) or re.search(r"([a-zA-Z]{2,3})\1{2,}", s):
+        return True
+
+    # 5. Skip words that are unnaturally long with no spaces (hallucinated merged text from overlapped lines)
+    words = s.split()
+    for w in words:
+        if len(w) >= 20 and not (w.startswith("http") or "/" in w or "_" in w):
+            return True
+
+
+    # 6. Skip text with anomalous bracketed / markup garbage
+    if re.search(r"[<>{}[\]|~^`]", s):
+        return True
+
+
+    # 7. Skip purely numeric, isolated digits, or punctuation noise (e.g. "23 88 27", "108", "0568")
     letters = sum(1 for c in s if c.isalpha() or '\u4e00' <= c <= '\u9fff' or '\u3040' <= c <= '\u30ff' or '\uac00' <= c <= '\ud7af')
     if letters < 2 and len(s) > 1:
         return True
 
+    # 8. Skip isolated 1-2 character fragments unless common valid English words
+    VALID_SHORT_WORDS = {"i", "a", "an", "as", "at", "be", "by", "do", "go", "he", "if", "in", "is", "it", "me", "my", "no", "of", "on", "or", "so", "to", "up", "us", "we", "ok"}
+    if len(s) <= 2 and s.lower() not in VALID_SHORT_WORDS:
+        return True
+
     return False
+
 
 
 class BaseOCREngine:

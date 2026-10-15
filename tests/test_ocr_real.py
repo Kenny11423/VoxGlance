@@ -39,3 +39,31 @@ def test_ocr_engine_handles_empty_or_blank_image():
     boxes = engine.detect_and_recognize(blank_frame)
     assert isinstance(boxes, list)
     assert len(boxes) == 0
+
+
+def test_ocr_noise_and_garbage_filtering():
+    """Verify that scanline distortion, overlapping ghosts, and merged garbage are rejected."""
+    from src.visual.ocr import is_noise_or_self_rendered
+
+    # 1. Repeated character glitch (e.g., 'uuuu', 'llll')
+    assert is_noise_or_self_rendered("Sauiltuuuuauueliaqiticil") is True
+    assert is_noise_or_self_rendered("Dinalululululllallil") is True
+
+    # 2. Unnaturally merged text with no spaces (>22 characters)
+    assert is_noise_or_self_rendered("Batcavesangmotbenturhietlapnhientongsonaunaydetoic6theichsyethon2'I") is True
+    assert is_noise_or_self_rendered("Xannuuuautavalugtlei,yuyamruniavuiate") is True
+
+    # 3. Bracketed / markup garbage
+    assert is_noise_or_self_rendered("yVm>culiviva Fiulieweiwuu>") is True
+
+    # 4. Vietnamese text (prevent reading back overlay)
+    assert is_noise_or_self_rendered("Dịch thuật trực quan thời gian thực") is True
+
+    # 5. System logs & telemetry
+    assert is_noise_or_self_rendered("src.core.orchestrator:83 - ✨ [Visual Live]") is True
+    assert is_noise_or_self_rendered("4% 62°C () 6.86GB") is True
+
+    # 6. Valid English sentences should NOT be filtered
+    assert is_noise_or_self_rendered("Hello world! This is a valid sentence.") is False
+    assert is_noise_or_self_rendered("Kininkai is an abbreviation for noble assembly.") is False
+

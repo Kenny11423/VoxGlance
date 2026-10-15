@@ -85,12 +85,27 @@ class MiniFloatingToolbar(QWidget):
             geo = screen.geometry()
             self.move(geo.width() - 340, 45)
 
+        # Keyboard shortcuts
+        from PyQt6.QtGui import QKeySequence, QShortcut
+        self.sc_f9 = QShortcut(QKeySequence("F9"), self)
+        self.sc_f9.activated.connect(self._handle_snapshot)
+        self.sc_esc = QShortcut(QKeySequence("Escape"), self)
+        self.sc_esc.activated.connect(self._handle_toggle)
+        self.sc_r = QShortcut(QKeySequence("r"), self)
+        self.sc_r.activated.connect(self._handle_reselect)
+
     def _handle_snapshot(self) -> None:
         if self.on_translate_snapshot:
             self.btn_snap.setText("⏳ Đang dịch...")
             QApplication.processEvents()
-            self.on_translate_snapshot()
-            self.btn_snap.setText("⚡ Dịch Trang Này")
+            import threading
+            from PyQt6.QtCore import QTimer
+            def _worker():
+                try:
+                    self.on_translate_snapshot()
+                finally:
+                    QTimer.singleShot(0, lambda: self.btn_snap.setText("⚡ Dịch Trang Này"))
+            threading.Thread(target=_worker, daemon=True).start()
 
     def _handle_reselect(self) -> None:
         if self.on_select_region:
@@ -99,6 +114,7 @@ class MiniFloatingToolbar(QWidget):
     def _handle_toggle(self) -> None:
         if self.on_toggle_visibility:
             self.on_toggle_visibility()
+
 
     def mousePressEvent(self, event):
         """Allow dragging the toolbar anywhere on screen."""

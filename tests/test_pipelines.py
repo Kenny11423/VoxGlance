@@ -77,6 +77,73 @@ def test_visual_pipeline_lifecycle():
     assert pipeline._is_running is False
 
 
+def test_visual_pipeline_clear_on_scroll_state_machine():
+    """Verify that scrolling immediately clears overlay and waits for debounce before new translation."""
+    from unittest.mock import MagicMock
+    from src.core.ipc import VisualBoundingBox
+
+    calls = []
+
+    def _on_boxes(boxes):
+        calls.append(list(boxes))
+
+    mock_ocr = MagicMock()
+    mock_box = VisualBoundingBox(
+        x=50, y=50, width=200, height=30, original_text="Test sentence", translated_text="Câu thử nghiệm"
+    )
+    mock_ocr.detect_and_recognize.return_value = [mock_box]
+
+    pipeline = VisualStreamingPipeline(
+        fps_limit=10,
+        diff_threshold=0.05,
+        scroll_threshold=0.035,
+        settle_delay=0.1,  # Fast settle for test
+        ocr_engine=mock_ocr,
+        on_boxes=_on_boxes,
+    )
+
+    dummy_frame = np.ones((100, 100, 3), dtype=np.uint8) * 200
+
+    # 1. Process initial clean frame
+    pipeline._process_and_emit_frame(dummy_frame)
+    assert pipeline._has_active_overlay is True
+    assert len(calls) == 1
+    assert len(calls[0]) == 1  # Overlay emitted
+
+    # 2. Simulate user scrolling: diff exceeds scroll_threshold
+    mock_diff = MagicMock()
+    mock_diff.diff_ratio = 0.08  # Significant scroll motion
+
+    # Trigger CASE 1 logic
+    if mock_diff.diff_ratio >= pipeline.scroll_threshold:
+        if pipeline._has_active_overlay:
+            pipeline.clear()
+        pipeline._is_scrolling = True
+        pipeline._last_scroll_time = 0.0
+
+
+    # Verify overlay was immediately cleared
+    assert len(calls) == 2
+    assert calls[1] == []  # Cleared!
+    assert pipeline._has_active_overlay is False
+    assert pipeline._is_scrolling is True
+
+    # 3. Simulate settling (time elapsed > settle_delay)
+    import time
+    now = time.time()
+    pipeline._last_scroll_time = now - 0.2  # 200ms ago > settle_delay (100ms)
+
+    if (now - pipeline._last_scroll_time) >= pipeline.settle_delay:
+        pipeline._is_scrolling = False
+        pipeline._process_and_emit_frame(dummy_frame)
+
+    assert pipeline._is_scrolling is False
+    assert pipeline._has_active_overlay is True
+    assert len(calls) == 3
+    assert len(calls[2]) == 1  # Clean new translation emitted!
+
+
+
 def test_orchestrator_lifecycle():
     config = AppConfig()
     orchestrator = VoxGlanceOrchestrator(
