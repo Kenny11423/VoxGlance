@@ -1,15 +1,28 @@
 # BẢNG CÂU HỎI KHẢO SÁT ĐỊNH LƯỢNG NGƯỜI DÙNG (QUANTITATIVE SURVEY QUESTIONNAIRE)
-## Dự án: VoxGlance – Real-time Multimodal Live Translator
+## Dự án: Ứng dụng Dịch thuật Đa phương tiện Thời gian thực (Real-time Multimodal Live Translator)
+### Chuyên đề: Dịch thuật trực quan thay thế tại chỗ trên màn hình (On-Screen In-Place Translation) cho Game & Tài liệu
 
 ---
 
-## 1. THIẾT KẾ MẪU VÀ CẤU TRÚC BẢNG HỎI
+## 1. THIẾT KẾ MẪU, PHÂN NHÓM ĐỐI TƯỢNG & PHƯƠNG PHÁP KHẢO SÁT
 
-* **Tên khảo sát:** *Khảo sát nhu cầu trải nghiệm dịch thuật đa phương thức thời gian thực trên máy tính cá nhân (PC/Laptop).*
-* **Đối tượng tiếp cận:** Người dùng máy tính thường xuyên tiêu thụ nội dung đa phương tiện nước ngoài (xem video, livestream, bài giảng, chơi game, hội họp trực tuyến).
-* **Kênh phân phối dự kiến:** Google Forms / Typeform chia sẻ trên các cộng đồng công nghệ (Voz, Tinh Tế), cộng đồng game thủ (JRPG / AAA Gaming Vietnam, Discord Streamers), diễn đàn sinh viên đại học (Bách Khoa, Quốc Gia, FPT, v.v.), và các hội nhóm Remote Work / Freelancers.
+### 1.1. Mục tiêu và Kênh phát hành
+* **Tên khảo sát:** *Khảo sát nhu cầu trải nghiệm dịch thuật trực quan thay thế tại chỗ trên màn hình khi chơi game và đọc tài liệu (PC/Laptop).*
+* **Phương pháp thu thập:** Khảo sát định lượng trực tuyến (Online Quantitative Survey) sử dụng biểu mẫu Google Forms / Typeform có logic phân nhánh theo nhóm đối tượng.
+* **Kênh phân phối:** Diễn đàn công nghệ (*Voz.vn, Tinh Tế*), cộng đồng game thủ (*Steam Vietnam, Discord JRPG/Visual Novel Vietnam*), cộng đồng sinh viên, nhà nghiên cứu học thuật và độc giả truyện tranh/sách số.
 * **Thời gian hoàn thành trung bình:** 5 – 7 phút.
-* **Cơ cấu thang đo:** Kết hợp câu hỏi trắc nghiệm đơn/đa lựa chọn, thang đo Likert 5 mức độ (1: Rất không đồng ý $\rightarrow$ 5: Rất đồng ý), thang điểm NPS (0 $\rightarrow$ 10), và kỹ thuật Van Westendorp Price Sensitivity Meter (PSM).
+
+### 1.2. Phân nhóm Đối tượng Khảo sát Mục tiêu
+Bảng hỏi được thiết kế để phân loại và thu thập dữ liệu từ **4 nhóm đối tượng người dùng**:
+1. **Nhóm I – Game thủ Cốt truyện & Nhập vai:** Người chơi game nước ngoài (JRPG, Visual Novel, AAA, Indie) chưa có bản patch tiếng Việt.
+2. **Nhóm II – Người đọc Tài liệu Kỹ thuật & Học thuật:** Sinh viên, lập trình viên, nhà nghiên cứu đọc tài liệu PDF khoa học, slide, tài liệu chuyên ngành.
+3. **Nhóm III – Độc giả Truyện tranh & Sách điện tử:** Người đọc Manga, Manhua, Light Novel, E-books trên máy tính.
+4. **Nhóm IV – Chuyên viên & Nhân sự Doanh nghiệp:** Chuyên viên xử lý hợp đồng, báo cáo tài liệu nội bộ tiếng nước ngoài cần bảo mật cao.
+
+### 1.3. Hệ thống Phương pháp Thang đo Chuẩn hóa
+* **Thang đo Likert 5 mức độ:** Đánh giá từ 1 (Hoàn toàn không đồng ý / Không quan trọng) đến 5 (Hoàn toàn đồng ý / Rất quan trọng) đối với các điểm đau thẩm mỹ và các tính năng công nghệ thay thế tại chỗ.
+* **Phương pháp Van Westendorp Price Sensitivity Meter (PSM):** Sử dụng bộ 4 câu hỏi định giá để xác định Khoảng giá chấp nhận được (Acceptable Price Range) và Điểm giá tối ưu (Optimum Price Point - OPP).
+* **Thang đo Net Promoter Score (NPS):** Đánh giá mức độ sẵn sàng giới thiệu sản phẩm trên thang điểm 0 – 10.
 
 ---
 
@@ -19,18 +32,17 @@
 
 **Câu 1 [Độ tuổi]:** Độ tuổi hiện tại của Bạn thuộc nhóm nào?
 - [ ] Dưới 18 tuổi
-- [ ] 18 – 24 tuổi (Sinh viên / Mới tốt nghiệp)
+- [ ] 18 – 24 tuổi (Học sinh / Sinh viên / Mới tốt nghiệp)
 - [ ] 25 – 34 tuổi (Người đi làm / Chuyên viên)
 - [ ] 35 – 44 tuổi
 - [ ] Trên 45 tuổi
 
-**Câu 2 [Nghề nghiệp / Lĩnh vực chính]:** Công việc hoặc lĩnh vực chính hiện tại của Bạn là gì?
-- [ ] Học sinh / Sinh viên (Công nghệ thông tin / Kỹ thuật)
-- [ ] Học sinh / Sinh viên (Kinh tế / Xã hội / Ngôn ngữ)
-- [ ] Lập trình viên / Kỹ sư dữ liệu / Chuyên gia IT
-- [ ] Game thủ / Streamer / Nhà sáng tạo nội dung số
-- [ ] Nhân viên văn phòng / Quản lý / Remote Worker
-- [ ] Nghề nghiệp khác: ________________________
+**Câu 2 [Phân nhóm đối tượng / Lĩnh vực chính]:** Bạn thường xuyên sử dụng máy tính cho mục đích nào sau đây nhất?
+- [ ] Chơi game nước ngoài cốt truyện sâu (JRPG, Visual Novel, AAA, Indie) $\rightarrow$ *[Thuộc Nhóm I]*
+- [ ] Đọc tài liệu học thuật, bài báo nghiên cứu PDF, slide chuyên ngành $\rightarrow$ *[Thuộc Nhóm II]*
+- [ ] Đọc truyện tranh Manga, Manhua, Light Novel, E-books trên PC $\rightarrow$ *[Thuộc Nhóm III]*
+- [ ] Đọc và xử lý tài liệu công việc, hợp đồng, báo cáo doanh nghiệp $\rightarrow$ *[Thuộc Nhóm IV]*
+- [ ] Khác: ________________________
 
 **Câu 3 [Cấu hình Card đồ họa (GPU)]:** Máy tính cá nhân Bạn thường xuyên sử dụng được trang bị card đồ họa nào?
 - [ ] Card tích hợp (Intel UHD / Iris Xe / AMD Radeon Graphics Onboard)
@@ -48,82 +60,83 @@
 
 ---
 
-### PHẦN 2: THÓI QUEN TIÊU THỤ NỘI DUNG & RÀO CẢN NGOẠI NGỮ (USAGE BEHAVIOR & PAIN POINTS)
+### PHẦN 2: THÓI QUEN TIÊU THỤ & ĐÁNH GIÁ ĐIỂM ĐAU VỚI CÔNG CỤ DỊCH MÀN HÌNH HIỆN CÓ
 
-**Câu 5 [Tần suất tiếp xúc]:** Trung bình mỗi ngày Bạn dành bao nhiêu thời gian cho các hoạt động sử dụng nội dung tiếng nước ngoài trên máy tính?
+**Câu 5 [Tần suất tiếp xúc]:** Trung bình mỗi ngày Bạn dành bao nhiêu thời gian cho các hoạt động chơi game hoặc đọc tài liệu tiếng nước ngoài trên máy tính?
 - [ ] Dưới 1 tiếng / ngày
 - [ ] 1 – 2 tiếng / ngày
 - [ ] 3 – 5 tiếng / ngày
 - [ ] Trên 5 tiếng / ngày
 
-**Câu 6 [Mục đích chính - Chọn tối đa 2]:** Mục đích chính Bạn cần xem/nghe nội dung tiếng nước ngoài là gì?
-- [ ] Xem video giải trí / giáo dục trên YouTube, Twitch, Bilibili
-- [ ] Chơi game nước ngoài không hỗ trợ tiếng Việt (JRPG, Visual Novel, AAA Games)
-- [ ] Học tập trực tuyến (Coursera, edX, Udemy, tài liệu nghiên cứu)
-- [ ] Làm việc, tham gia họp trực tuyến quốc tế (Google Meet, Zoom, Teams)
-- [ ] Khác: ________________________
+**Câu 6 [Công cụ hiện đang sử dụng]:** Hiện tại khi gặp văn bản tiếng nước ngoài trong game hoặc tài liệu, Bạn thường dùng công cụ nào? (Chọn tối đa 2)
+- [ ] Dùng phần mềm dịch màn hình (Translumo, MORT, Capture2Text, Screen Translator)
+- [ ] Dùng công cụ can thiệp bộ nhớ game (LunaTranslator / Textractor)
+- [ ] Dùng ứng dụng điện thoại quét màn hình (Google Lens)
+- [ ] Dùng extension trình duyệt hoặc copy-paste sang Google Translate / DeepL
+- [ ] Tự tra từ điển từng từ một / Cố gắng tự hiểu mà không dùng tool
 
-**Câu 7 [Đánh giá công cụ hiện nay]:** Hãy đánh giá mức độ đồng ý của Bạn với các nhận định sau đây về các công cụ dịch thuật hiện có mà Bạn từng sử dụng (1: Hoàn toàn không đồng ý $\rightarrow$ 5: Hoàn toàn đồng ý):
+**Câu 7 [Đánh giá các điểm đau trên thang đo Likert 1-5 (1: Hoàn toàn không đồng ý $\rightarrow$ 5: Hoàn toàn đồng ý)]:** Hãy đánh giá mức độ đồng ý của Bạn với các nhận định sau về các công cụ dịch màn hình hiện có:
 
-| Tiêu chí nhận định | 1 | 2 | 3 | 4 | 5 |
+| Tiêu chí nhận định điểm đau thẩm mỹ & trải nghiệm | 1 | 2 | 3 | 4 | 5 |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| 7.1. Phụ đề tự động của YouTube trễ quá nhiều so với lời nói của nhân vật (trễ $> 2\text{s}$) | ( ) | ( ) | ( ) | ( ) | ( ) |
-| 7.2. Các ứng dụng dịch màn hình bắt phải dùng chuột kéo thả từng khung chữ làm gián đoạn trải nghiệm | ( ) | ( ) | ( ) | ( ) | ( ) |
-| 7.3. Màn hình hiển thị cả tiếng Anh gốc và tiếng Việt dịch cùng lúc khiến tôi bị rối mắt | ( ) | ( ) | ( ) | ( ) | ( ) |
-| 7.4. Phụ đề hay bị che mất nội dung quan trọng trên video hoặc giao diện game | ( ) | ( ) | ( ) | ( ) | ( ) |
-| 7.5. Khi có nhạc nền hoặc tiếng động, phần mềm dịch thường bị ảo giác, tự chế ra các từ vô nghĩa | ( ) | ( ) | ( ) | ( ) | ( ) |
-| 7.6. Phụ đề chạy quá nhanh hoặc biến mất trước khi tôi kịp đọc xong câu | ( ) | ( ) | ( ) | ( ) | ( ) |
-| 7.7. Tôi lo ngại các công cụ đám mây nghe lén hoặc lưu trữ nội dung cuộc họp/màn hình của tôi | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 7.1. Cửa sổ dịch nằm riêng biệt ở góc màn hình khiến mắt tôi phải liên tục đảo qua lại giữa game/tài liệu và khung dịch, rất mỏi mắt và mất tập trung | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 7.2. Các phần mềm dịch đè hiện tại vẽ một "hộp chữ nhật đen/xám" thô thiển che kín hình ảnh game hoặc tài liệu, làm xấu và hỏng tính thẩm mỹ thị giác | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 7.3. Chữ dịch tiếng Việt thường bị quá dài, tràn ra ngoài khung thoại gốc (overflow) hoặc đè lên thanh máu (HP), minimap hay biểu đồ tài liệu | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 7.4. Việc bắt người dùng phải dùng phím tắt và kéo chuột quét từng ô dịch làm đứt mạch cảm xúc chơi game và mất nhịp đọc tài liệu | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 7.5. Các công cụ can thiệp vào bộ nhớ game (Text Hooking) khiến tôi rất lo sợ bị hệ thống Anti-cheat khóa tài khoản (Ban nick) | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 7.6. Copy-paste tài liệu PDF/slide sang Google Translate làm mất hết định dạng ngắt dòng, nhảy hình minh họa và vỡ bố cục | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 7.7. Tôi lo ngại các công cụ đám mây lưu trữ hoặc rò rỉ hình ảnh màn hình/tài liệu công việc nội bộ của tôi | ( ) | ( ) | ( ) | ( ) | ( ) |
 
 ---
 
-### PHẦN 3: ĐÁNH GIÁ CÁC TÍNH NĂNG CỦA OMNITRANSLATE (FEATURE PREFERENCE & IMPACT)
+### PHẦN 3: ĐÁNH GIÁ CÁC TÍNH NĂNG CỦA ỨNG DỤNG DỊCH THUẬT THAY THẾ TẠI CHỖ THẨM MỸ CAO
 
-**Câu 8 [Độ quan trọng của các tính năng]:** Hãy đánh giá mức độ quan trọng của các giải pháp công nghệ sau đối với Bạn (1: Không quan trọng $\rightarrow$ 5: Cực kỳ quan trọng):
+**Câu 8 [Độ quan trọng của các tính năng công nghệ]:** Hãy đánh giá mức độ quan trọng của các giải pháp công nghệ sau đối với Bạn (1: Không quan trọng $\rightarrow$ 5: Cực kỳ quan trọng):
 
-| Tính năng cốt lõi của VoxGlance | 1 | 2 | 3 | 4 | 5 |
+| Giải pháp công nghệ thay thế tại chỗ thẩm mỹ cao | 1 | 2 | 3 | 4 | 5 |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| 8.1. **Đồng bộ siêu tốc ($< 0.5$ giây):** Phụ đề tiếng Việt xuất hiện bám sát ngay khi nhân vật cất tiếng | ( ) | ( ) | ( ) | ( ) | ( ) |
-| 8.2. **Chỉ hiển thị Tiếng Việt:** Không hiển thị tiếng Anh gốc, giao diện tối giản như phụ đề rạp phim | ( ) | ( ) | ( ) | ( ) | ( ) |
-| 8.3. **Cuộn 2 dòng (Roll-Up):** Dòng 1 lưu câu vừa dứt trong 8 giây, dòng 2 hiển thị câu mới nói | ( ) | ( ) | ( ) | ( ) | ( ) |
-| 8.4. **Lọc sạch âm tạp (Neural VAD):** Nhạc nền và tiếng động không làm phát sinh phụ đề ảo | ( ) | ( ) | ( ) | ( ) | ( ) |
-| 8.5. **Nhận diện chữ trên màn hình (Visual OCR):** Tự dịch chữ trong game/ảnh mà không cần quét chuột | ( ) | ( ) | ( ) | ( ) | ( ) |
-| 8.6. **Né va chạm (Collision Avoidance):** Phụ đề tự động nhảy vị trí để không đè lên chữ quan trọng | ( ) | ( ) | ( ) | ( ) | ( ) |
-| 8.7. **Chạy hoàn toàn Offline trên máy:** Dữ liệu âm thanh/hình ảnh không bao giờ gửi ra Internet | ( ) | ( ) | ( ) | ( ) | ( ) |
-| 8.8. **Nhẹ máy (Tiết kiệm VRAM $< 1$GB):** Không làm tụt FPS game và không gây đơ lag máy | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 8.1. **Dịch thay thế tại chỗ (In-Place Text Replacement):** Chữ dịch tiếng Việt xuất hiện đè ngay trên vị trí chữ gốc, tạo cảm giác như game/tài liệu đã được Việt hóa tự nhiên | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 8.2. **Hòa trộn màu nền thông minh (Adaptive Background Matching):** Tự động lấy mẫu màu nền xung quanh để che chữ cũ, tiệp màu tự nhiên, tuyệt đối không tạo khối đen thô kệch | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 8.3. **Tự động co giãn kích thước chữ (Font Auto-scaling):** Tự động tính toán số ký tự để co giãn cỡ font vừa vặn hoàn hảo trong khung chữ gốc, không bao giờ bị tràn viền (overflow) | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 8.4. **Viền nét tương phản cao (Contrast Text Outline/Shadow):** Chữ dịch có viền nét tinh tế, luôn nổi rõ và sắc nét trên mọi hình nền game chuyển động hay tài liệu có hoa văn | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 8.5. **Nhận diện tự động 0-click (Screen Diff OCR):** Tự động phát hiện khi màn hình đổi thoại mới mà không cần người dùng phải bấm phím hay quét chuột | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 8.6. **An toàn 100% với Anti-Cheat:** Hoạt động dưới dạng Desktop Overlay độc lập, tuyệt đối không can thiệp bộ nhớ RAM game, không lo bị cấm nick | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 8.7. **Chạy hoàn toàn Offline trên máy:** Xử lý 100% trên GPU cục bộ, hình ảnh màn hình không bao giờ bị gửi ra Internet | ( ) | ( ) | ( ) | ( ) | ( ) |
+| 8.8. **Nhẹ máy (Tiết kiệm VRAM $< 1$GB):** Chạy mượt mà song song với game nặng, bảo đảm giữ vững 60 FPS không giật lag | ( ) | ( ) | ( ) | ( ) | ( ) |
 
-**Câu 9 [Ngưỡng độ trễ tối đa chấp nhận được]:** Nếu xem video hoặc chơi game với phụ đề dịch trực tiếp, độ trễ tối đa mà Bạn có thể chấp nhận trước khi cảm thấy khó chịu là:
-- [ ] $\le 0.4$ giây (Gần như tức thì theo khẩu hình nhân vật)
-- [ ] $0.5$ – $0.8$ giây (Chấp nhận được, không ảnh hưởng nhiều)
-- [ ] $1.0$ – $1.5$ giây (Hơi chậm nhưng vẫn tạm hiểu)
-- [ ] Trên 2.0 giây (Quá chậm, không thể chấp nhận)
+**Câu 9 [Ngưỡng độ trễ thay thế chữ chấp nhận được khi chơi game / đọc tài liệu]:**
+- [ ] $\le 0.3$ giây (Gần như tức thì theo nhịp chuyển thoại game)
+- [ ] $0.4$ – $0.6$ giây (Chấp nhận được, không ảnh hưởng nhiều)
+- [ ] $0.7$ – $1.0$ giây (Hơi chậm nhưng vẫn tạm dùng được)
+- [ ] Trên 1.5 giây (Quá chậm, làm đứt mạch game và ức chế)
 
 ---
 
-### PHẦN 4: ĐỘ NHẠY CẢM VỀ GIÁ & MÔ HÌNH THƯƠNG MẠI (PRICING & GO-TO-MARKET)
-*(Áp dụng phương pháp Van Westendorp Price Sensitivity Meter - PSM)*
+### PHẦN 4: ĐO LƯỜNG ĐỘ NHẠY CẢM VỀ GIÁ (VAN WESTENDORP PSM) & CHỈ SỐ NPS
 
-**Câu 10 [Mức giá Quá Rẻ (Too Cheap)]:** Ở mức giá nào Bạn sẽ cho rằng sản phẩm này có chất lượng kém, không đáng tin cậy hoặc chứa mã độc/lỗi?
-- Mức giá: _______________ VNĐ (hoặc USD)
+*Giả định ứng dụng này chạy hoàn toàn Offline trên máy tính, thay thế chữ trực tiếp tại chỗ với độ thẩm mỹ cao (tiệp màu nền, tự co giãn chữ vừa khít, không che lấn chi tiết đồ họa), nhận diện chuẩn xác game và tài liệu với VRAM $< 1$GB:*
 
-**Câu 11 [Mức giá Hợp lý (Bargain / Good Value)]:** Ở mức giá nào Bạn cảm thấy đây là một món hời lớn, cực kỳ xứng đáng với giá trị và sẽ mua ngay lập tức không do dự?
-- Mức giá: _______________ VNĐ (hoặc USD)
+**Câu 10 [Mức giá Quá rẻ - Too Cheap]:** Mức giá nào đối với bản quyền phần mềm này khiến Bạn cảm thấy quá rẻ đến mức nghi ngờ về chất lượng dịch thuật hoặc sợ phần mềm chứa mã độc/virus?
+- Nhập số tiền (VNĐ): ____________________ VNĐ
 
-**Câu 12 [Mức giá Bắt đầu Đắt (Expensive)]:** Ở mức giá nào Bạn bắt đầu cảm thấy sản phẩm đắt, vẫn có thể cân nhắc mua nhưng cần phải suy nghĩ kỹ?
-- Mức giá: _______________ VNĐ (hoặc USD)
+**Câu 11 [Mức giá Rẻ / Hời - Bargain / Cheap]:** Mức giá nào Bạn cảm thấy là một món hời lớn (giá rất hợp lý, chất lượng cao) và Bạn sẽ quyết định chi tiền mua ngay không cần đắn đo?
+- Nhập số tiền (VNĐ): ____________________ VNĐ
 
-**Câu 13 [Mức giá Quá Đắt (Too Expensive)]:** Ở mức giá nào Bạn cảm thấy sản phẩm quá đắt đỏ và tuyệt đối không bao giờ mua, dù tính năng có tốt đến đâu?
-- Mức giá: _______________ VNĐ (hoặc USD)
+**Câu 12 [Mức giá Bắt đầu đắt - Expensive]:** Mức giá nào khiến Bạn bắt đầu thấy đắt, tuy vẫn có thể cân nhắc mua nhưng cần phải suy nghĩ và so sánh kỹ?
+- Nhập số tiền (VNĐ): ____________________ VNĐ
 
-**Câu 14 [Mô hình cấp phép ưa thích]:** Bạn muốn thanh toán cho phần mềm này theo hình thức nào?
-- [ ] **Freemium:** Miễn phí bản tiêu chuẩn (mô hình dịch tiêu chuẩn); Trả phí 1 lần để mở khóa AI tăng tốc GPU cao cấp & OCR không giới hạn.
-- [ ] **Mua bản quyền 1 lần vĩnh viễn (Lifetime License):** Trả tiền 1 lần duy nhất, dùng trọn đời và nhận cập nhật phần mềm 1 năm.
+**Câu 13 [Mức giá Quá đắt - Too Expensive]:** Mức giá nào đối với Bạn là quá đắt, vượt quá giá trị nhận lại và Bạn kiên quyết sẽ không bao giờ mua?
+- Nhập số tiền (VNĐ): ____________________ VNĐ
+
+**Câu 14 [Mô hình thanh toán ưa thích]:** Bạn muốn thanh toán cho phần mềm này theo hình thức nào nhất?
+- [ ] **Freemium:** Dùng miễn phí giới hạn tính năng/thời lượng + Trả phí 1 lần để mở khóa bản quyền Pro vĩnh viễn.
+- [ ] **Mua bản quyền 1 lần trọn đời (Lifetime License):** Trả 1 lần duy nhất, dùng mãi mãi kèm cập nhật trọn đời.
 - [ ] **Thuê bao hàng tháng (Monthly Subscription):** Trả phí linh hoạt theo tháng (ví dụ 49.000đ – 79.000đ/tháng), có thể hủy bất cứ lúc nào.
 - [ ] **Gói trả theo mức sử dụng (Pay-per-hour):** Mua giờ sử dụng (ví dụ 10.000đ / 10 tiếng dịch).
 
-**Câu 15 [Điểm giới thiệu Net Promoter Score - NPS]:** Trên thang điểm từ 0 đến 10, Bạn sẵn sàng giới thiệu phần mềm VoxGlance cho bạn bè, đồng nghiệp hoặc hội nhóm cùng sở thích ở mức độ nào?
+**Câu 15 [Điểm giới thiệu Net Promoter Score - NPS]:** Trên thang điểm từ 0 đến 10, Bạn sẵn sàng giới thiệu ứng dụng dịch thuật thay thế tại chỗ thẩm mỹ này cho bạn bè, hội nhóm game thủ hoặc đồng nghiệp ở mức độ nào?
 *(0: Hoàn toàn không giới thiệu $\longleftrightarrow$ 10: Chắc chắn sẽ giới thiệu nhiệt tình)*
 `[ 0 ] [ 1 ] [ 2 ] [ 3 ] [ 4 ] [ 5 ] [ 6 ] [ 7 ] [ 8 ] [ 9 ] [ 10 ]`
 
-**Câu 16 [Góp ý tự do]:** Bạn có mong muốn, kỳ vọng hoặc lời khuyên nào dành cho đội ngũ phát triển VoxGlance không?
+**Câu 16 [Góp ý tự do]:** Bạn có mong muốn, kỳ vọng hoặc lời khuyên nào dành cho đội ngũ phát triển ứng dụng không?
 - Ý kiến của Bạn: ____________________________________________________________________
