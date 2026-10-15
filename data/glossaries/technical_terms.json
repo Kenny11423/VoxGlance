@@ -1,0 +1,14 @@
+{
+  "Transformer": "Mô hình Transformer",
+  "Attention Mechanism": "Cơ chế Chú ý (Attention)",
+  "Neural Network": "Mạng Nơ-ron",
+  "Deep Learning": "Học Sâu",
+  "Machine Learning": "Học Máy",
+  "Gradient Descent": "Hạ Gradient",
+  "Backpropagation": "Lan Truyền Ngược",
+  "Latency": "Độ Trễ",
+  "Throughput": "Băng Thông / Thông Lượng",
+  "Bounding Box": "Khung Bao (Bounding Box)",
+  "Quantization": "Lượng Tử Hóa (Quantization)",
+  "Inference": "Suy Luận (Inference)"
+}

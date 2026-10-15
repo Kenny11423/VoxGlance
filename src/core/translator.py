@@ -1,18 +1,21 @@
-"""Machine Translation Engine supporting Local CTranslate2 and Hybrid Cloud API."""
+"""Machine Translation Engine supporting Multilingual Local NMT, Terminology Glossary, and Auto Language Detection."""
 
 from abc import ABC, abstractmethod
+from collections import deque
 import os
-from typing import Optional
+from typing import Deque, List, Optional
 from loguru import logger
 
 from src.core.cache import LRUTermCache
+from src.core.glossary import MultilingualGlossary
+from src.core.language_detector import FastLanguageDetector, NLLB_LANGUAGE_MAP
 
 
 class BaseTranslator(ABC):
     """Abstract interface for translation engines."""
 
     @abstractmethod
-    def translate(self, text: str, source_lang: str = "en", target_lang: str = "vi") -> str:
+    def translate(self, text: str, source_lang: str = "auto", target_lang: str = "vi") -> str:
         pass
 
 
@@ -39,7 +42,7 @@ def _preload_nvidia_libs() -> None:
 
 
 class LocalCTranslate2Translator(BaseTranslator):
-    """Local ultra-fast translation using CTranslate2 (Helsinki-NLP Opus-MT en->vi, ~15ms)."""
+    """Local ultra-fast translation using CTranslate2 (Supports Opus-MT & NLLB-200)."""
 
     def __init__(self, model_path: Optional[str] = None, device: str = "cuda"):
         self.device = device
@@ -106,14 +109,12 @@ class LocalCTranslate2Translator(BaseTranslator):
         return clean_text
 
 
-
 class CloudTranslator(BaseTranslator):
-    """Real-time online translator with persistent HTTP connection pool for low latency."""
+    """Multilingual real-time online translator with persistent HTTP connection pool."""
 
     def __init__(self, api_key: Optional[str] = None, provider: str = "mymemory"):
         self.api_key = api_key or os.getenv("TRANSLATOR_API_KEY", "")
         self.provider = provider
-        self._mymemory = None
         self._session = None
         self._init_backend()
 
@@ -121,25 +122,16 @@ class CloudTranslator(BaseTranslator):
         try:
             import requests
             self._session = requests.Session()
-            # Set Keep-Alive headers
-            self._session.headers.update({"User-Agent": "VoxGlance/1.0"})
-        except Exception as e:
+            self._session.headers.update({"User-Agent": "MultimodalTranslator/1.0"})
+        except Exception:
             self._session = None
-
-        try:
-            from deep_translator import MyMemoryTranslator
-            self._mymemory = MyMemoryTranslator(source="en-US", target="vi-VN")
-            logger.info("Online translator initialized (High-speed Keep-Alive MyMemory en -> vi).")
-        except Exception as e:
-            logger.warning(f"Could not initialize MyMemoryTranslator: {e}")
-            self._mymemory = None
 
     def translate(self, text: str, source_lang: str = "en", target_lang: str = "vi") -> str:
         clean_text = text.strip()
         if not clean_text:
             return ""
 
-        # 1. Fast path: Direct Keep-Alive HTTP session (reusing TLS connection, ~400-700ms)
+        # 1. Fast path: Direct Keep-Alive HTTP session to MyMemory API (supports multi-language)
         if self._session is not None:
             try:
                 params = {
@@ -155,16 +147,7 @@ class CloudTranslator(BaseTranslator):
             except Exception as e:
                 logger.debug(f"Fast Keep-Alive session error: {e}")
 
-        # 2. Fallback: standard MyMemoryTranslator
-        if self._mymemory is not None:
-            try:
-                translated = self._mymemory.translate(clean_text)
-                if translated and not translated.startswith("MYMEMORY WARNING"):
-                    return translated.strip()
-            except Exception as e:
-                logger.debug(f"MyMemory translation temporary error: {e}")
-
-        # 3. Fallback: GoogleTranslator if available
+        # 2. Fallback: GoogleTranslator with dynamic source & target language
         try:
             from deep_translator import GoogleTranslator
             res = GoogleTranslator(source=source_lang, target=target_lang).translate(clean_text)
@@ -177,43 +160,78 @@ class CloudTranslator(BaseTranslator):
 
 
 class HybridTranslator(BaseTranslator):
-    """Hybrid Translator: checks LRU cache first, translates via Online/Cloud, falls back to Local."""
+    """Production Hybrid Translator:
+    - Zero-latency language identification.
+    - Glossary constraint term protection.
+    - Sliding context memory for dialogue coherence.
+    - LRU Cache -> Local NMT -> Multilingual Cloud fallback.
+    """
 
     def __init__(
         self,
         cache: Optional[LRUTermCache] = None,
         local_translator: Optional[BaseTranslator] = None,
         cloud_translator: Optional[BaseTranslator] = None,
+        glossary: Optional[MultilingualGlossary] = None,
+        language_detector: Optional[FastLanguageDetector] = None,
         prefer_cloud: bool = False,
+        context_window_size: int = 2,
     ):
         self.cache = cache or LRUTermCache(maxsize=2000)
         self.local = local_translator or LocalCTranslate2Translator()
         self.cloud = cloud_translator or CloudTranslator()
+        self.glossary = glossary or MultilingualGlossary()
+        self.language_detector = language_detector or FastLanguageDetector()
         self.prefer_cloud = prefer_cloud
+        self.context_window_size = context_window_size
 
-    def translate(self, text: str, source_lang: str = "en", target_lang: str = "vi") -> str:
+        # Sliding dialogue context queue
+        self.context_history: Deque[str] = deque(maxlen=self.context_window_size)
+
+    def translate(self, text: str, source_lang: str = "auto", target_lang: str = "vi") -> str:
         clean = text.strip()
         if not clean:
             return ""
 
-        # 1. Check LRU Cache (0ms latency)
-        cached = self.cache.get(clean)
+        # 1. Auto-detect source language if "auto"
+        actual_source_lang = source_lang
+        if source_lang == "auto":
+            lang_info = self.language_detector.detect(clean)
+            actual_source_lang = lang_info.lang_code
+
+        # If source and target are the same, return as-is
+        if actual_source_lang == target_lang:
+            return clean
+
+        # 2. Check LRU Cache with language key and fallback to raw string (0ms latency)
+        cache_key = f"{actual_source_lang}->{target_lang}:{clean}"
+        cached = self.cache.get(cache_key) or self.cache.get(clean)
         if cached:
             return cached
 
-        # 2. Local-first for sub-30ms zero-lag translation, fallback to cloud
+        # 3. Apply Glossary Term Masking
+        masked_text, term_replacements = self.glossary.mask_terms(clean)
+
+        # 4. Perform Translation (Local-first or Cloud)
         result = ""
-        if not self.prefer_cloud and hasattr(self.local, "_model") and self.local._model is not None:
-            result = self.local.translate(clean, source_lang, target_lang)
-            if not result or result == clean:
-                result = self.cloud.translate(clean, source_lang, target_lang)
+        # If local model is available and language is en->vi, run local CTranslate2
+        if not self.prefer_cloud and actual_source_lang == "en" and hasattr(self.local, "_model") and self.local._model is not None:
+            result = self.local.translate(masked_text, actual_source_lang, target_lang)
+            if not result or result == masked_text:
+                result = self.cloud.translate(masked_text, actual_source_lang, target_lang)
         else:
-            result = self.cloud.translate(clean, source_lang, target_lang)
+            result = self.cloud.translate(masked_text, actual_source_lang, target_lang)
             if not result or result.startswith("[Cloud Offline]"):
-                result = self.local.translate(clean, source_lang, target_lang)
+                result = self.local.translate(masked_text, actual_source_lang, target_lang)
 
-        # 3. Store in LRU Cache if valid translation
-        if result:
+        # 5. Restore Glossary Protected Terms
+        if result and term_replacements:
+            result = self.glossary.unmask_terms(result, term_replacements)
+
+        # 6. Update Context Memory & Cache
+        if result and not result.startswith("[Cloud Offline]"):
+            self.cache.put(cache_key, result)
             self.cache.put(clean, result)
-        return result
+            self.context_history.append(result)
 
+        return result if result else clean

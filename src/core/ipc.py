@@ -19,7 +19,7 @@ class SubtitleToken:
 
 @dataclass
 class VisualBoundingBox:
-    """Represents a detected text box on screen with coordinates and translation."""
+    """Represents a detected text box on screen with coordinates, aesthetic styling, and translation."""
     x: int
     y: int
     width: int
@@ -28,6 +28,13 @@ class VisualBoundingBox:
     translated_text: str
     confidence: float = 1.0
     timestamp: float = field(default_factory=time.time)
+    # Aesthetic styling properties
+    bg_color: Optional[tuple] = None  # RGB tuple e.g. (25, 30, 42)
+    text_color: Optional[tuple] = None  # RGB tuple e.g. (255, 255, 255)
+    outline_color: Optional[tuple] = None  # RGB tuple for contrast outline
+    font_size: int = 12  # Optimal auto-scaled font size
+    is_vertical: bool = False  # Vertical text for Manga / Japanese UI
+    detected_lang: str = "en"  # Detected source language code
 
 
 @dataclass

@@ -222,17 +222,39 @@ class TransparentOverlayWindow(QMainWindow):
         painter.end()
 
     def _draw_ocr_box(self, painter: QPainter, box: VisualBoundingBox) -> None:
-        """Draw translated text directly replacing on-screen text."""
-        font = QFont("Sans-Serif", 13, QFont.Weight.Bold)
-        painter.setFont(font)
+        """Draw translated text directly replacing on-screen text with aesthetic in-place blending."""
+        display_text = box.translated_text or box.original_text
+        if not display_text:
+            return
 
-        bg_rect = QRect(box.x, box.y, max(box.width, 100), max(box.height, 28))
-        painter.setBrush(QBrush(QColor(15, 23, 42, 220)))  # Slate 900 semi-transparent
-        painter.setPen(QPen(QColor(56, 189, 248, 200), 1.5))  # Cyan border
+        # 1. Background Rect & Adaptive Color
+        bg_rect = QRect(box.x, box.y, max(box.width, 40), max(box.height, 22))
+        
+        bg_r, bg_g, bg_b = box.bg_color if box.bg_color else (20, 24, 33)
+        # Alpha ~88% (225) to cleanly mask original text while softly blending with surroundings
+        painter.setBrush(QBrush(QColor(bg_r, bg_g, bg_b, 225)))
+        painter.setPen(QPen(QColor(bg_r, bg_g, bg_b, 100), 1.0))
         painter.drawRoundedRect(bg_rect, 4, 4)
 
-        painter.setPen(QColor(255, 255, 255))
-        painter.drawText(bg_rect, Qt.AlignmentFlag.AlignCenter, box.translated_text)
+        # 2. Dynamic Auto-Scaled Font
+        font_size = getattr(box, "font_size", 12)
+        font = QFont("Arial", max(8, font_size), QFont.Weight.Bold)
+        painter.setFont(font)
+
+        # 3. Contrast Text Styling (Drop shadow / Outline + Main text)
+        text_r, text_g, text_b = box.text_color if box.text_color else (255, 255, 255)
+        out_r, out_g, out_b = box.outline_color if box.outline_color else (0, 0, 0)
+
+        align_flags = int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap)
+
+        # Render subtle 1px contrast shadow for legibility on 3D game backgrounds
+        shadow_rect = QRect(box.x + 1, box.y + 1, bg_rect.width(), bg_rect.height())
+        painter.setPen(QColor(out_r, out_g, out_b, 180))
+        painter.drawText(shadow_rect, align_flags, display_text)
+
+        # Render primary crisp text
+        painter.setPen(QColor(text_r, text_g, text_b, 255))
+        painter.drawText(bg_rect, align_flags, display_text)
 
     def _draw_subtitle(self, painter: QPainter, screen_w: int, screen_h: int) -> None:
         """Draw modern streaming subtitle pill supporting 2-Line Roll-Up."""
