@@ -72,6 +72,13 @@ class VisualStreamingPipeline:
                     raw_boxes = self.ocr_engine.detect_and_recognize(frame)
 
                     if raw_boxes:
+                        current_signatures = [b.original_text.strip() for b in raw_boxes if b.original_text.strip()]
+                        # Debounce: if recognized text is unchanged from last cycle, skip to prevent flickering
+                        if hasattr(self, "_last_signatures") and self._last_signatures == current_signatures:
+                            time.sleep(self.interval)
+                            continue
+                        self._last_signatures = current_signatures
+
                         # 2. Smart Sentence Stitching (group lines to prevent fragmented translation)
                         if self.enable_stitching:
                             processed_boxes = self.stitcher.stitch(raw_boxes)

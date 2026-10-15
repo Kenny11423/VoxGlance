@@ -157,16 +157,11 @@ class TransparentOverlayWindow(QMainWindow):
             self.partial_subtitle = ""
             changed = True
 
+        # Subtitle auto-expiry remains for audio speech
         if not self.prev_subtitle and not self.committed_subtitle and not self.partial_subtitle:
             if self.current_subtitle:
                 self.current_subtitle = ""
                 changed = True
-
-        # Auto-expire OCR boxes older than 3 seconds
-        active_boxes = [b for b in self.ocr_boxes if (now - b.timestamp) < 3.0]
-        if len(active_boxes) != len(self.ocr_boxes):
-            self.ocr_boxes = active_boxes
-            changed = True
 
         if changed:
             self.update()
@@ -194,9 +189,30 @@ class TransparentOverlayWindow(QMainWindow):
         self.update()
 
     def update_ocr_boxes(self, boxes: List[VisualBoundingBox]) -> None:
-        """Update active OCR text overlays."""
+        """Update active OCR text overlays with flicker-free stability lock."""
+        if not boxes:
+            # Do NOT clear existing boxes if frame had no text (keeps translation stable for reading)
+            return
+
+        # Check if new boxes are virtually identical to current boxes to prevent flickering
+        old_texts = [b.translated_text for b in self.ocr_boxes if b.translated_text]
+        new_texts = [b.translated_text for b in boxes if b.translated_text]
+        if old_texts and new_texts and old_texts == new_texts:
+            # Content is identical, skip repaint to prevent visual blinking
+            return
+
+        now = time.time()
+        for b in boxes:
+            b.timestamp = now
+
         self.ocr_boxes = boxes
         self.update()
+
+    def clear_ocr_boxes(self) -> None:
+        """Explicitly clear on-screen OCR boxes."""
+        if self.ocr_boxes:
+            self.ocr_boxes = []
+            self.update()
 
     def paintEvent(self, event) -> None:
         """Render subtitles and OCR overlays using QPainter."""
