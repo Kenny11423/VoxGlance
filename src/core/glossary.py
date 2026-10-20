@@ -31,6 +31,14 @@ class MultilingualGlossary:
         self._pattern: Optional[re.Pattern] = None
         if glossary_file and os.path.exists(glossary_file):
             self.load_from_file(glossary_file)
+        else:
+            default_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "configs",
+                "default_glossary.json"
+            )
+            if os.path.exists(default_path):
+                self.load_from_file(default_path)
 
     def add_term(
         self,
@@ -117,14 +125,25 @@ class MultilingualGlossary:
         return masked_text, matches
 
     def unmask_terms(self, text: str, replacements: List[Tuple[str, str]]) -> str:
-        """Replace protected tokens with target translated terms."""
+        """Replace protected tokens with target translated terms, resilient to NMT mangling."""
         if not text or not replacements:
             return text
 
         result = text
         for token, target_term in replacements:
-            # Handle potential spaces injected around tokens by translation models
-            pattern = re.compile(re.escape(token), re.IGNORECASE)
-            result = pattern.sub(target_term, result)
+            idx_m = re.search(r'\d+', token)
+            idx = idx_m.group(0) if idx_m else '0'
+            # Patterns covering exact token and variations produced by Marian/NLLB tokenizer:
+            patterns = [
+                re.compile(re.escape(token), re.IGNORECASE),
+                re.compile(r'[_\[<{]*TERM[_\s]*' + idx + r'[_\]>}]*', re.IGNORECASE),
+                re.compile(r'[_\[<{]*BAR[_\s]*' + idx + r'[_\]>}]*', re.IGNORECASE),
+            ]
+            for p in patterns:
+                result = p.sub(target_term, result)
 
+        # Clean any trailing run of underscores left behind by token distortion
+        result = re.sub(r'_{2,}', ' ', result)
+        # Normalize whitespace
+        result = re.sub(r'[ \t]{2,}', ' ', result).strip()
         return result

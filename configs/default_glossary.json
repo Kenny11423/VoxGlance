@@ -1,0 +1,86 @@
+{
+  "Noble Assembly": {
+    "target": "Hội đồng Quý tộc",
+    "domain": "novel"
+  },
+  "Kinin Noble Assembly": {
+    "target": "Hội đồng Quý tộc Kinin",
+    "domain": "novel"
+  },
+  "pocket watch": {
+    "target": "đồng hồ quả quýt",
+    "domain": "general"
+  },
+  "marriage registration": {
+    "target": "đăng ký kết hôn",
+    "domain": "general"
+  },
+  "noble marriage registration": {
+    "target": "đăng ký kết hôn quý tộc",
+    "domain": "novel"
+  },
+  "Personnel Administration Bureau": {
+    "target": "Cục Quản lý Nhân sự",
+    "domain": "novel"
+  },
+  "Higher Order Spirit Rank Administration Bureau": {
+    "target": "Cục Quản lý Cấp bậc Tinh linh Cao cấp",
+    "domain": "novel"
+  },
+  "Central 1st sector": {
+    "target": "Phân khu Trung tâm số 1",
+    "domain": "novel"
+  },
+  "Central 1stsector": {
+    "target": "Phân khu Trung tâm số 1",
+    "domain": "novel"
+  },
+  "6th sector": {
+    "target": "Khu vực số 6",
+    "domain": "novel"
+  },
+  "Seireitei": {
+    "target": "Tịnh Linh Đình",
+    "domain": "anime"
+  },
+  "Soul Society": {
+    "target": "Thi Hồn Giới",
+    "domain": "anime"
+  },
+  "Shunpo": {
+    "target": "Thuấn Bộ",
+    "domain": "anime"
+  },
+  "Zanpakuto": {
+    "target": "Trảm Hồn Đao",
+    "domain": "anime"
+  },
+  "Captain": {
+    "target": "Đội trưởng",
+    "domain": "anime"
+  },
+  "Vice Captain": {
+    "target": "Đội phó",
+    "domain": "anime"
+  },
+  "Division": {
+    "target": "Phân đội",
+    "domain": "anime"
+  },
+  "Byakuya sama": {
+    "target": "Byakuya-sama",
+    "domain": "anime"
+  },
+  "Renji sama": {
+    "target": "Renji-sama",
+    "domain": "anime"
+  },
+  "Rukia sama": {
+    "target": "Rukia-sama",
+    "domain": "anime"
+  },
+  "Kininkai": {
+    "target": "Kininkai",
+    "domain": "anime"
+  }
+}

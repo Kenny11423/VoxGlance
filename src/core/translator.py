@@ -3,12 +3,14 @@
 from abc import ABC, abstractmethod
 from collections import deque
 import os
+import re
 from typing import Deque, List, Optional
 from loguru import logger
 
 from src.core.cache import LRUTermCache
 from src.core.glossary import MultilingualGlossary
 from src.core.language_detector import FastLanguageDetector, NLLB_LANGUAGE_MAP
+from src.core.tone_processor import ToneProcessor
 
 
 class BaseTranslator(ABC):
@@ -93,18 +95,24 @@ class LocalCTranslate2Translator(BaseTranslator):
         if not clean_text or (len(clean_text) == 1 and not clean_text.isalnum()):
             return ""
 
+        # Bridge __TERM_(\d+)__ to TOKEN\1X to prevent MarianMT SentencePiece infinite underscore loop
+        has_terms = "__TERM_" in clean_text
+        input_text = re.sub(r'__TERM_(\d+)__', r'TOKEN\1X', clean_text) if has_terms else clean_text
+
         if self._model is not None and self._sp_source is not None and self._sp_target is not None:
             try:
-                tokens = [">>vie<<"] + self._sp_source.encode(clean_text, out_type=str) + ["</s>"]
+                tokens = [">>vie<<"] + self._sp_source.encode(input_text, out_type=str) + ["</s>"]
                 results = self._model.translate_batch(
                     [tokens],
-                    beam_size=2,
+                    beam_size=3,
                     repetition_penalty=1.2,
-                    max_decoding_length=80,
+                    max_decoding_length=150,
                 )
                 out_tokens = [tok for tok in results[0].hypotheses[0] if tok not in ["</s>", ">>vie<<"]]
                 vi_text = self._sp_target.decode(out_tokens).strip()
                 if vi_text:
+                    if has_terms:
+                        vi_text = re.sub(r'[\b\[<{_]*T(?:O|0)?KEN\s*(\d+)\s*X[\b\]>}_]*', r'__TERM_\1__', vi_text, flags=re.IGNORECASE)
                     return vi_text
             except Exception as e:
                 logger.error(f"CTranslate2 inference error: {e}")
@@ -119,10 +127,16 @@ class LocalCTranslate2Translator(BaseTranslator):
             return texts
 
         clean_texts = [t.strip() for t in texts]
+        has_terms_list = ["__TERM_" in t for t in clean_texts]
+        safe_texts = [
+            re.sub(r'__TERM_(\d+)__', r'TOKEN\1X', t) if has else t
+            for t, has in zip(clean_texts, has_terms_list)
+        ]
+
         batch_tokens = []
         valid_indices = []
 
-        for idx, t in enumerate(clean_texts):
+        for idx, t in enumerate(safe_texts):
             if t and not (len(t) == 1 and not t.isalnum()):
                 tokens = [">>vie<<"] + self._sp_source.encode(t, out_type=str) + ["</s>"]
                 batch_tokens.append(tokens)
@@ -135,14 +149,16 @@ class LocalCTranslate2Translator(BaseTranslator):
         try:
             batch_results = self._model.translate_batch(
                 batch_tokens,
-                beam_size=2,
+                beam_size=3,
                 repetition_penalty=1.2,
-                max_decoding_length=120,
+                max_decoding_length=150,
             )
             for idx, res in zip(valid_indices, batch_results):
                 out_tokens = [tok for tok in res.hypotheses[0] if tok not in ["</s>", ">>vie<<"]]
                 vi_text = self._sp_target.decode(out_tokens).strip()
                 if vi_text:
+                    if has_terms_list[idx]:
+                        vi_text = re.sub(r'[\b\[<{_]*T(?:O|0)?KEN\s*(\d+)\s*X[\b\]>}_]*', r'__TERM_\1__', vi_text, flags=re.IGNORECASE)
                     results_out[idx] = vi_text
         except Exception as e:
             logger.error(f"CTranslate2 batch inference error: {e}")
@@ -215,6 +231,7 @@ class HybridTranslator(BaseTranslator):
         cloud_translator: Optional[BaseTranslator] = None,
         glossary: Optional[MultilingualGlossary] = None,
         language_detector: Optional[FastLanguageDetector] = None,
+        tone_processor: Optional[ToneProcessor] = None,
         prefer_cloud: bool = False,
         context_window_size: int = 2,
     ):
@@ -223,6 +240,7 @@ class HybridTranslator(BaseTranslator):
         self.cloud = cloud_translator or CloudTranslator()
         self.glossary = glossary or MultilingualGlossary()
         self.language_detector = language_detector or FastLanguageDetector()
+        self.tone_processor = tone_processor or ToneProcessor()
         self.prefer_cloud = prefer_cloud
         self.context_window_size = context_window_size
 
@@ -269,7 +287,15 @@ class HybridTranslator(BaseTranslator):
         if result and term_replacements:
             result = self.glossary.unmask_terms(result, term_replacements)
 
-        # 6. Update Context Memory & Cache
+        # 6. Tone & Persona Contextual Refinement
+        if result and not result.startswith("[Cloud Offline]"):
+            result = self.tone_processor.process(
+                result,
+                source_text=clean,
+                context_history=list(self.context_history),
+            )
+
+        # 7. Update Context Memory & Cache
         if result and not result.startswith("[Cloud Offline]"):
             self.cache.put(cache_key, result)
             self.cache.put(clean, result)
@@ -328,12 +354,19 @@ class HybridTranslator(BaseTranslator):
             # Fallback to sequential
             translated_batch = [self.cloud.translate(m, source_lang, target_lang) for m in masked_batch]
 
-        # 4. Unmask terms, update Cache and populate results
+        # 4. Unmask terms, refine tone & persona, update Cache and populate results
         for idx, orig_idx in enumerate(indices_to_fetch):
             vi_text = translated_batch[idx] if idx < len(translated_batch) else texts_to_fetch[idx]
             reps = replacements_batch[idx]
             if reps and vi_text:
                 vi_text = self.glossary.unmask_terms(vi_text, reps)
+
+            if vi_text:
+                vi_text = self.tone_processor.process(
+                    vi_text,
+                    source_text=texts_to_fetch[idx],
+                    context_history=list(self.context_history),
+                )
 
             final_text = vi_text if vi_text else texts_to_fetch[idx]
             results[orig_idx] = final_text
