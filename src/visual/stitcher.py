@@ -2,10 +2,13 @@
 
 Features:
 1. Merges fragmented multi-line OCR bounding boxes into complete grammatical sentences.
-2. Respects language spacing rules (space for Latin, no-space for CJK).
-3. Computes union bounding box for cohesive in-place replacement.
+2. Context-aware sentence boundary detection (unfinished lines vs dialogue turns & list items).
+3. De-hyphenates words broken across line wraps (e.g. 'regis-' + 'tration!' -> 'registration!').
+4. Respects language spacing rules (space for Latin, no-space for CJK).
+5. Computes union bounding box for cohesive in-place replacement and complete masking.
 """
 
+import re
 from typing import List, Tuple
 from src.core.ipc import VisualBoundingBox
 
@@ -15,13 +18,60 @@ class SmartTextStitcher:
 
     def __init__(
         self,
-        line_height_multiplier: float = 0.65,
-        horizontal_overlap_threshold: float = 0.2,
-        max_column_drift: int = 30,
+        line_height_multiplier: float = 1.35,
+        horizontal_overlap_threshold: float = 0.35,
+        max_column_drift: int = 50,
     ):
         self.line_height_multiplier = line_height_multiplier
         self.horizontal_overlap_threshold = horizontal_overlap_threshold
         self.max_column_drift = max_column_drift
+
+    @staticmethod
+    def _is_sentence_terminator(text: str) -> bool:
+        """Check if a line ends with sentence-terminating punctuation."""
+        t = text.strip()
+        if not t:
+            return True
+        # Ignore common abbreviations ending with dot
+        if re.search(r'\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|vs|etc|e\.g|i\.e)\.\s*$', t, re.IGNORECASE):
+            return False
+        # Matches ., !, ?, …, ... or CJK equivalents 。！？ followed by optional quotes/brackets
+        return bool(re.search(r'([.!?…]+|[。！？])[\s"\'”’»\)\]]*$', t))
+
+    @staticmethod
+    def _is_new_block_starter(text: str) -> bool:
+        """Check if a line clearly starts a new item, dialogue turn, or structural block."""
+        t = text.strip()
+        # Numbered list or bullet point: "1-", "2.", "3)", "4-For", "•", "-", "*"
+        if re.match(r'^(?:\(?\d+[\.\-\)]\s*|[•\-\*■◆]\s+)', t):
+            return True
+        # Dialogue quotation starter: “ " 「 『 ‘
+        if re.match(r'^[“"「『‘]', t):
+            return True
+        return False
+
+    @staticmethod
+    def _clean_and_join_lines(prev_text: str, next_text: str, detected_lang: str) -> str:
+        """Join two consecutive lines, seamlessly unwrapping hyphenated words."""
+        prev = prev_text.strip()
+        nxt = next_text.strip()
+        if not prev:
+            return nxt
+        if not nxt:
+            return prev
+
+        # De-hyphenate broken words across line wraps in Latin languages:
+        # e.g., "regis-" + "tration!" -> "registration!"
+        if detected_lang not in ["ja", "zh"]:
+            hyphen_match = re.search(r'([a-zA-Z]+)\s*[-\u2010\u2013]\s*$', prev)
+            start_match = re.match(r'^[a-zA-Z]+', nxt)
+            if hyphen_match and start_match:
+                prev_unhyphen = re.sub(r'\s*[-\u2010\u2013]\s*$', '', prev)
+                return prev_unhyphen + nxt
+
+        # Standard joining: No space for CJK, single space for others
+        sep = "" if detected_lang in ["ja", "zh", "ko"] else " "
+        return f"{prev}{sep}{nxt}"
 
     def stitch(
         self,
@@ -52,23 +102,45 @@ class SmartTextStitcher:
         for next_box in sorted_boxes[1:]:
             last_box = current_group[-1]
 
-            # Check if next_box belongs to the same paragraph / dialogue block:
-            # 1. Vertical distance is within in-paragraph line gap threshold
             avg_h = (last_box.height + next_box.height) / 2.0
             vertical_gap = next_box.y - (last_box.y + last_box.height)
 
-            # 2. Horizontal alignment check: must share the same text column
+            # Horizontal alignment check: must share the same column
             overlap_x1 = max(last_box.x, next_box.x)
             overlap_x2 = min(last_box.x + last_box.width, next_box.x + next_box.width)
             horizontal_overlap = max(0, overlap_x2 - overlap_x1)
             min_w = min(last_box.width, next_box.width)
 
-            is_vertically_adjacent = -avg_h * 0.5 <= vertical_gap <= avg_h * self.line_height_multiplier
-            has_horizontal_alignment = abs(last_box.x - next_box.x) <= self.max_column_drift or (
-                horizontal_overlap / max(1, min_w) >= 0.7
+            has_horizontal_alignment = (
+                abs(last_box.x - next_box.x) <= self.max_column_drift
+                or (horizontal_overlap / max(1, min_w)) >= self.horizontal_overlap_threshold
             )
 
-            if is_vertically_adjacent and has_horizontal_alignment:
+            last_text = last_box.original_text.strip()
+            next_text = next_box.original_text.strip()
+
+            last_finished = self._is_sentence_terminator(last_text)
+            next_is_new_block = self._is_new_block_starter(next_text)
+
+            # Never stitch a new bullet/numbered list item into the preceding line
+            is_new_list_item = bool(re.match(r'^(?:\(?\d+[\.\-\)]\s*|[•\-\*■◆]\s+)', next_text))
+            # Never stitch across separate dialogue turns
+            is_separate_dialogue = last_finished and next_is_new_block
+
+            # Dynamic line gap tolerance:
+            # Unfinished lines get up to 1.85x height (web/novel loose line spacing)
+            # Finished lines get standard in-paragraph multiplier (1.35x)
+            allowed_multiplier = 1.85 if not last_finished else self.line_height_multiplier
+            is_vertically_adjacent = -avg_h * 0.5 <= vertical_gap <= avg_h * allowed_multiplier
+
+            should_merge = (
+                has_horizontal_alignment
+                and is_vertically_adjacent
+                and not is_new_list_item
+                and not is_separate_dialogue
+            )
+
+            if should_merge:
                 current_group.append(next_box)
             else:
                 groups.append(current_group)
@@ -99,9 +171,9 @@ class SmartTextStitcher:
         max_x = max(b.x + b.width for b in group)
         max_y = max(b.y + b.height for b in group)
 
-        # Spacing separator: No space for CJK (Japanese, Chinese), single space for Latin/others
-        sep = "" if detected_lang in ["ja", "zh", "ko"] else " "
-        combined_text = sep.join(b.original_text.strip() for b in group if b.original_text.strip())
+        combined_text = group[0].original_text.strip()
+        for b in group[1:]:
+            combined_text = self._clean_and_join_lines(combined_text, b.original_text, detected_lang)
 
         avg_conf = sum(b.confidence for b in group) / max(1, len(group))
         line_count = len(group)

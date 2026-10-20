@@ -276,11 +276,42 @@ class TransparentOverlayWindow(QMainWindow):
         if not display_text:
             return
 
-        # 1. Background Rect with slight margin expansion to cover ascenders/descenders
-        bg_rect = QRect(max(0, box.x - 2), max(0, box.y - 1), max(box.width + 4, 30), max(box.height + 2, 16))
+        # 1. Background Mask Calculation with dynamic expansion
+        pad_x_left = 4
+        pad_x_right = 16  # Generous right padding to fully cover trailing punctuation & italic overhang
+        pad_y = 3
+
+        bg_x = max(0, box.x - pad_x_left)
+        bg_y = max(0, box.y - pad_y)
+        bg_w = max(box.width + pad_x_left + pad_x_right, 40)
+
+        # 2. Typography & Font Setup
+        font_size = getattr(box, "font_size", 12)
+        font_weight = QFont.Weight.Medium if getattr(box, "font_weight", "medium") == "medium" else QFont.Weight.Bold
+        font = QFont("Noto Sans", max(9, font_size), font_weight)
+        painter.setFont(font)
+
+        # 3. Dynamic Height Calculation to prevent translated text from overflowing the mask
+        inner_pad_x = 6
+        usable_w = max(20, bg_w - (inner_pad_x * 2))
+        alignment = getattr(box, "alignment", "left")
+
+        if alignment == "left":
+            align_flags = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap)
+        else:
+            align_flags = int(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap)
+
+        metrics = painter.fontMetrics()
+        text_bounds = metrics.boundingRect(QRect(0, 0, usable_w, 10000), align_flags, display_text)
+        needed_text_h = text_bounds.height()
+
+        # Expand mask height if wrapped translation needs more vertical space than original English box
+        min_box_h = box.height + (pad_y * 2)
+        bg_h = max(min_box_h, needed_text_h + 8)
+        bg_rect = QRect(bg_x, bg_y, bg_w, bg_h)
+
         bg_r, bg_g, bg_b = box.bg_color if box.bg_color else (20, 24, 33)
         outline_color = getattr(box, "outline_color", None)
-        alignment = getattr(box, "alignment", "left")
 
         # Check if background is light document mode (luminance >= 160)
         luminance = 0.299 * bg_r + 0.587 * bg_g + 0.114 * bg_b
@@ -293,25 +324,14 @@ class TransparentOverlayWindow(QMainWindow):
             painter.drawRect(bg_rect)
         else:
             # 3D Game / Dark mode: 88% opaque rounded mask with subtle border
-            painter.setBrush(QBrush(QColor(bg_r, bg_g, bg_b, 225)))
+            painter.setBrush(QBrush(QColor(bg_r, bg_g, bg_b, 235)))
             painter.setPen(QPen(QColor(bg_r, bg_g, bg_b, 100), 1.0))
-            painter.drawRoundedRect(bg_rect, 3, 3)
+            painter.drawRoundedRect(bg_rect, 4, 4)
 
-        # 2. Dynamic Auto-Scaled Font anchored to original font size
-        font_size = getattr(box, "font_size", 12)
-        font_weight = QFont.Weight.Medium if getattr(box, "font_weight", "medium") == "medium" else QFont.Weight.Bold
-        font = QFont("Noto Sans", max(8, font_size), font_weight)
-        painter.setFont(font)
+        # 4. Text Rect layout anchored neatly to top of mask
+        text_rect = QRect(bg_rect.x() + inner_pad_x, bg_rect.y() + 4, usable_w, max(needed_text_h, bg_rect.height() - 8))
 
-        # 3. Alignment and Text Rect layout
-        if alignment == "left":
-            align_flags = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter | Qt.TextFlag.TextWordWrap)
-            text_rect = QRect(bg_rect.x() + 4, bg_rect.y(), max(20, bg_rect.width() - 8), bg_rect.height())
-        else:
-            align_flags = int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap)
-            text_rect = bg_rect
-
-        # 4. Text Contrast Rendering
+        # 5. Text Contrast Rendering
         text_r, text_g, text_b = box.text_color if box.text_color else (20, 24, 33)
 
         if not is_light_doc and outline_color:

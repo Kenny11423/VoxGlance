@@ -167,7 +167,12 @@ def calculate_optimal_font_size(
         chars_per_line = max(1, int(usable_w / char_w))
         max_possible_lines = max(1, int(usable_h / line_h))
         if target_lines and target_lines > 0:
-            max_possible_lines = max(max_possible_lines, target_lines)
+            # Allow wrapping +1 or +2 lines when translation expands (e.g. Vietnamese),
+            # because the transparent overlay dynamically expands the background mask!
+            expansion_tolerance = 1 if len(words) >= 4 else 0
+            max_possible_lines = max(max_possible_lines, target_lines + expansion_tolerance)
+        elif len(words) >= 6:
+            max_possible_lines = max(max_possible_lines, 2)
 
         lines_needed = 0
         current_line_chars = 0
