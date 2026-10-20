@@ -200,12 +200,9 @@ class VisualStreamingPipeline:
         try:
             # 1. Clear any active overlay first
             if self._has_active_overlay or self.on_boxes:
-                if self.on_boxes:
-                    self.on_boxes([])
-                self._has_active_overlay = False
-                self._last_signatures = []
-                # Sleep 60ms to guarantee OS compositor clears the screen buffer
-                time.sleep(0.06)
+                self.clear()
+                # Sleep 120ms to guarantee OS compositor clears the screen buffer
+                time.sleep(0.12)
 
             # 2. Grab 100% clean frame
             frame = self.capture.grab(bbox=self.roi)
