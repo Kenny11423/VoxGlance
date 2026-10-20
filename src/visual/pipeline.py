@@ -50,6 +50,7 @@ class VisualStreamingPipeline:
         self._last_scroll_time: float = 0.0
         self._has_active_overlay: bool = False
         self._last_signatures: List[str] = []
+        self._cooldown_until: float = 0.0
 
         self._is_running = False
         self._thread: Optional[threading.Thread] = None
@@ -60,6 +61,14 @@ class VisualStreamingPipeline:
             self.on_boxes([])
         self._has_active_overlay = False
         self._last_signatures = []
+
+    def _sync_rendered_reference(self) -> None:
+        """Synchronize differencer reference frame with the rendered overlay to prevent false-motion trigger."""
+        time.sleep(0.08)
+        rendered_frame = self.capture.grab(bbox=self.roi)
+        if self.differencer:
+            self.differencer.last_frame = self.differencer._to_grayscale(rendered_frame)
+        self._cooldown_until = time.time() + 0.35
 
     def set_roi(self, roi: Optional[Tuple[int, int, int, int]]) -> None:
         """Dynamically update Region of Interest (x, y, width, height)."""
@@ -86,6 +95,12 @@ class VisualStreamingPipeline:
         while self._is_running:
             start_time = time.time()
             try:
+                now = time.time()
+                # If currently in cooldown after rendering, wait for display to settle
+                if now < self._cooldown_until:
+                    time.sleep(self.interval)
+                    continue
+
                 frame = self.capture.grab(bbox=self.roi)
                 diff_result = self.differencer.compare(frame)
                 now = time.time()
@@ -100,25 +115,31 @@ class VisualStreamingPipeline:
                     self._is_scrolling = True
                     self._last_scroll_time = now
 
-
                 # CASE 2: Currently in scrolling motion - waiting for user to stop
                 elif self._is_scrolling:
                     # Check if scroll has settled (user paused scrolling for settle_delay)
                     if (now - self._last_scroll_time) >= self.settle_delay:
                         # Screen is now completely stationary!
-                        # Because overlay was cleared in CASE 1, 'frame' is 100% CLEAN
+                        # Grab fresh clean frame since user stopped scrolling
                         self._is_scrolling = False
-                        self._process_and_emit_frame(frame)
-                        if self.differencer:
-                            self.differencer.last_frame = self.differencer._to_grayscale(frame)
+                        clean_frame = self.capture.grab(bbox=self.roi)
+                        success = self._process_and_emit_frame(clean_frame)
+                        if success and self._has_active_overlay:
+                            self._sync_rendered_reference()
+                        else:
+                            if self.differencer:
+                                self.differencer.last_frame = self.differencer._to_grayscale(clean_frame)
 
                 # CASE 3: Completely idle (no scroll, no motion)
                 else:
                     # If no active overlay yet (initial run or after clear), process clean frame
                     if not self._has_active_overlay and diff_result.should_process:
-                        self._process_and_emit_frame(frame)
-                        if self.differencer:
-                            self.differencer.last_frame = self.differencer._to_grayscale(frame)
+                        success = self._process_and_emit_frame(frame)
+                        if success and self._has_active_overlay:
+                            self._sync_rendered_reference()
+                        else:
+                            if self.differencer:
+                                self.differencer.last_frame = self.differencer._to_grayscale(frame)
                     # If active overlay is already displaying and screen is static:
                     # DO NOTHING! Strictly avoid re-OCR on top of existing overlay to prevent feedback loops.
 
@@ -205,12 +226,15 @@ class VisualStreamingPipeline:
                 time.sleep(0.12)
 
             # 2. Grab 100% clean frame
-            frame = self.capture.grab(bbox=self.roi)
-            self._process_and_emit_frame(frame)
+            clean_frame = self.capture.grab(bbox=self.roi)
+            success = self._process_and_emit_frame(clean_frame)
 
-            # 3. Synchronize reference frame in differencer
-            if self.differencer:
-                self.differencer.last_frame = self.differencer._to_grayscale(frame)
+            # 3. Synchronize reference frame with rendered screen
+            if success and self._has_active_overlay:
+                self._sync_rendered_reference()
+            else:
+                if self.differencer:
+                    self.differencer.last_frame = self.differencer._to_grayscale(clean_frame)
 
         except Exception as e:
             logger.error(f"Error in instant snapshot translation: {e}")
