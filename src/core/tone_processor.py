@@ -11,6 +11,10 @@ import re
 from typing import List, Optional
 
 
+VN_UPPER = "A-ZĐÁÀẢÃẠÂẤẦẨẪẬĂẮẰẲẴẶÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴ"
+SPEECH_VERBS = r"\b(?:nói|bảo|cười|hỏi|đáp|kêu|hét|thì thầm|gật đầu|lẩm bẩm)"
+
+
 class ToneProcessor:
     """Enhances raw machine translation into natural, tone-appropriate Vietnamese."""
 
@@ -23,12 +27,15 @@ class ToneProcessor:
 
         # Common Japanese honorific standardizations
         self._honorific_patterns = [
+            (re.compile(r'\b([A-Z][a-zA-Z]+)\s+[Ss]amal\b'), r'\1-sama!'),
+            (re.compile(r'\b([A-Z][a-zA-Z]+)-[Ss]amal\b'), r'\1-sama!'),
             (re.compile(r'\b([A-Z][a-zA-Z]+)\s+[Ss]ama\b'), r'\1-sama'),
             (re.compile(r'\b([A-Z][a-zA-Z]+)\s+[Ss]an\b'), r'\1-san'),
             (re.compile(r'\b([A-Z][a-zA-Z]+)\s+[Kk]un\b'), r'\1-kun'),
             (re.compile(r'\b([A-Z][a-zA-Z]+)\s+[Cc]han\b'), r'\1-chan'),
             (re.compile(r'\b([A-Z][a-zA-Z]+)\s+[Ss]enpai\b'), r'\1-senpai'),
             (re.compile(r'\b([A-Z][a-zA-Z]+)\s+[Dd]ono\b'), r'\1-dono'),
+            (re.compile(r'\bNi-[Ss]ama\b', re.IGNORECASE), 'Nii-sama'),
         ]
 
         # Awkward literal NMT phrase replacements
@@ -42,6 +49,21 @@ class ToneProcessor:
             (re.compile(r'sự bất tuân thượng phẩm', re.IGNORECASE), 'thủ tục cho giới quý tộc'),
             (re.compile(r'Tạp chí 1 nhiệm vụ', re.IGNORECASE), 'Phân khu Trung tâm số 1'),
             (re.compile(r'chiến tranh quân sự!?', re.IGNORECASE), 'đăng ký kết hôn'),
+            (re.compile(r'\bbị mù\b', re.IGNORECASE), 'khuất tầm mắt'),
+            (re.compile(r'ở một cung thấp', re.IGNORECASE), 'vẫn cúi mình cung kính'),
+            (re.compile(r'trong khi còn lại cúi mình cung kính', re.IGNORECASE), 'trong khi vẫn cúi mình cung kính'),
+            (re.compile(r'tới khuất tầm mắt', re.IGNORECASE), 'khuất hẳn tầm mắt'),
+            (re.compile(r'trông chừng cho đến khi', re.IGNORECASE), 'dõi theo bóng lưng ngài cho đến khi'),
+            (re.compile(r'Vâng sau đó\.{2,}', re.IGNORECASE), 'Vậy thì...'),
+            (re.compile(r'trên thế giới này là gì\s*[\'"]?([a-zA-Z0-9\s]+)[\'"]?\s*mà', re.IGNORECASE), r'rốt cuộc \1 mà'),
+            (re.compile(r'\b(?:bạn|Bạn)\s+nên tránh mất kiên nhẫn', re.IGNORECASE), 'ngài đừng nôn nóng thế chứ'),
+            (re.compile(r'\btôi sẽ đi ngay bây giờ\b', re.IGNORECASE), 'tôi xin phép lui trước'),
+            (re.compile(r'\btrên tờ báo có tựa đề\b', re.IGNORECASE), 'trên tờ giấy có tiêu đề'),
+            (re.compile(r'\btờ báo có tựa đề\b', re.IGNORECASE), 'tờ giấy có tiêu đề'),
+            (re.compile(r'\btrên tờ báo\b', re.IGNORECASE), 'trên tờ giấy'),
+            (re.compile(r'\bmột vô số\b', re.IGNORECASE), 'vô số'),
+            (re.compile(r'Abatai Renji', re.IGNORECASE), 'Abarai Renji'),
+            (re.compile(r'Bykuya', re.IGNORECASE), 'Byakuya'),
         ]
 
     def is_dialogue(self, text: str) -> bool:
@@ -103,9 +125,19 @@ class ToneProcessor:
             res = re.sub(r'\bcác người\b', 'các bạn', res, flags=re.IGNORECASE)
 
         # 4. Clean up spacing around quotes and punctuation
+        res = re.sub(r'"{2,}', '"', res)
+        # Speech verb preceding quote gets colon, space, and capitalized dialogue: cười"ngài -> cười: "Ngài
+        res = re.sub(rf'({SPEECH_VERBS})\s*[“"]\s*([{VN_UPPER}a-zà-ỹ])', lambda m: f'{m.group(1)}: "{m.group(2).upper()}', res, flags=re.IGNORECASE)
+        # Space between closing quote and following word: .."Đó -> .." Đó or Kinin"ở -> Kinin" ở
+        res = re.sub(r'([.,!?…\w])[”"](\w)', r'\1" \2', res)
+        # Space before opening quote inside sentence: trả lời với “tuân -> trả lời với “tuân
+        res = re.sub(r'(\w)[“"](\w)', r'\1 "\2', res)
+        # Clean inner spaces in opening quotes (only when preceded by start/space/colon)
+        res = re.sub(r'(^|[\s\(\[\{:—])([“"「『])\s+', r'\1\2', res)
+        # Clean inner spaces in closing quotes (only when followed by end/space/punctuation)
+        res = re.sub(r'\s+([”"」』])(?=$|[\s\.,!?…\)\]\}—])', r'\1', res)
+        # Clean spaces before punctuation
         res = re.sub(r'\s+([,.:;?!…])', r'\1', res)
-        res = re.sub(r'([“"「『])\s+', r'\1', res)
-        res = re.sub(r'\s+([”"」』])', r'\1', res)
         res = re.sub(r'([.!?…])([A-ZÀ-Ỹ])', r'\1 \2', res)
 
         return res

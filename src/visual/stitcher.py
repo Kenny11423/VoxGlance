@@ -18,7 +18,7 @@ class SmartTextStitcher:
 
     def __init__(
         self,
-        line_height_multiplier: float = 1.35,
+        line_height_multiplier: float = 0.60,
         horizontal_overlap_threshold: float = 0.35,
         max_column_drift: int = 50,
     ):
@@ -27,10 +27,20 @@ class SmartTextStitcher:
         self.max_column_drift = max_column_drift
 
     @staticmethod
-    def _is_sentence_terminator(text: str) -> bool:
-        """Check if a line ends with sentence-terminating punctuation."""
+    def _is_complete_dialogue(text: str) -> bool:
+        """Check if a line is a complete, self-contained dialogue quote."""
+        t = text.strip()
+        starts_quote = bool(re.match(r'^[“"「『‘]', t))
+        ends_quote = bool(re.search(r'[”"」』’][\s.]*$', t))
+        return starts_quote and ends_quote
+
+    @classmethod
+    def _is_sentence_terminator(cls, text: str) -> bool:
+        """Check if a line ends with sentence-terminating punctuation or closes a dialogue."""
         t = text.strip()
         if not t:
+            return True
+        if cls._is_complete_dialogue(t):
             return True
         # Ignore common abbreviations ending with dot
         if re.search(r'\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|vs|etc|e\.g|i\.e)\.\s*$', t, re.IGNORECASE):
@@ -120,25 +130,31 @@ class SmartTextStitcher:
             next_text = next_box.original_text.strip()
 
             last_finished = self._is_sentence_terminator(last_text)
-            next_is_new_block = self._is_new_block_starter(next_text)
+            last_is_complete_dial = self._is_complete_dialogue(last_text)
+            next_is_dial_start = bool(re.match(r'^[“"「『‘]', next_text))
 
             # Never stitch a new bullet/numbered list item into the preceding line
             is_new_list_item = bool(re.match(r'^(?:\(?\d+[\.\-\)]\s*|[•\-\*■◆]\s+)', next_text))
-            # Never stitch across separate dialogue turns
-            is_separate_dialogue = last_finished and next_is_new_block
 
-            # Dynamic line gap tolerance:
-            # Unfinished lines get up to 1.85x height (web/novel loose line spacing)
-            # Finished lines get standard in-paragraph multiplier (1.35x)
-            allowed_multiplier = 1.85 if not last_finished else self.line_height_multiplier
-            is_vertically_adjacent = -avg_h * 0.5 <= vertical_gap <= avg_h * allowed_multiplier
+            # Separation conditions:
+            # 1. Complete dialogue line must not absorb the next line
+            # 2. Finished sentence must not absorb a new dialogue line
+            if last_is_complete_dial:
+                should_merge = False
+            elif next_is_dial_start and last_finished:
+                should_merge = False
+            else:
+                # Dynamic line gap tolerance:
+                # Unfinished lines get up to 0.95x height (bridges loose line wraps within clause)
+                # Finished lines get strict in-paragraph multiplier (0.60x) to avoid bridging paragraph breaks
+                allowed_multiplier = 0.95 if not last_finished else self.line_height_multiplier
+                is_vertically_adjacent = -avg_h * 0.5 <= vertical_gap <= avg_h * allowed_multiplier
 
-            should_merge = (
-                has_horizontal_alignment
-                and is_vertically_adjacent
-                and not is_new_list_item
-                and not is_separate_dialogue
-            )
+                should_merge = (
+                    has_horizontal_alignment
+                    and is_vertically_adjacent
+                    and not is_new_list_item
+                )
 
             if should_merge:
                 current_group.append(next_box)

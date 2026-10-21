@@ -112,7 +112,7 @@ class LocalCTranslate2Translator(BaseTranslator):
                 vi_text = self._sp_target.decode(out_tokens).strip()
                 if vi_text:
                     if has_terms:
-                        vi_text = re.sub(r'[\b\[<{_]*T(?:O|0)?KEN\s*(\d+)\s*X[\b\]>}_]*', r'__TERM_\1__', vi_text, flags=re.IGNORECASE)
+                        vi_text = re.sub(r'[\b\[<{_]*T(?:O|0)?KEN\s*(\d+)\s*X?[\b\]>}_]*', r'__TERM_\1__', vi_text, flags=re.IGNORECASE)
                     return vi_text
             except Exception as e:
                 logger.error(f"CTranslate2 inference error: {e}")
@@ -158,7 +158,7 @@ class LocalCTranslate2Translator(BaseTranslator):
                 vi_text = self._sp_target.decode(out_tokens).strip()
                 if vi_text:
                     if has_terms_list[idx]:
-                        vi_text = re.sub(r'[\b\[<{_]*T(?:O|0)?KEN\s*(\d+)\s*X[\b\]>}_]*', r'__TERM_\1__', vi_text, flags=re.IGNORECASE)
+                        vi_text = re.sub(r'[\b\[<{_]*T(?:O|0)?KEN\s*(\d+)\s*X?[\b\]>}_]*', r'__TERM_\1__', vi_text, flags=re.IGNORECASE)
                     results_out[idx] = vi_text
         except Exception as e:
             logger.error(f"CTranslate2 batch inference error: {e}")
@@ -216,6 +216,15 @@ class CloudTranslator(BaseTranslator):
         return f"[Cloud Offline]: {clean_text}"
 
 
+def normalize_source_text(text: str) -> str:
+    """Clean common OCR artifacts from source text before translation."""
+    s = text.strip()
+    # Normalize OCR-confused asterisks into quotes when bordering words (*word -> 'word)
+    s = re.sub(r'(^|[\s"\(])\*+([a-zA-Z0-9])', r"\1'\2", s)
+    s = re.sub(r'([a-zA-Z0-9])\*+(?=$|[\s"\),.:;!?])', r"\1'", s)
+    return s
+
+
 class HybridTranslator(BaseTranslator):
     """Production Hybrid Translator:
     - Zero-latency language identification.
@@ -248,7 +257,7 @@ class HybridTranslator(BaseTranslator):
         self.context_history: Deque[str] = deque(maxlen=self.context_window_size)
 
     def translate(self, text: str, source_lang: str = "auto", target_lang: str = "vi") -> str:
-        clean = text.strip()
+        clean = normalize_source_text(text)
         if not clean:
             return ""
 
@@ -319,7 +328,7 @@ class HybridTranslator(BaseTranslator):
 
         # 1. Check Cache first (0ms)
         for i, t in enumerate(texts):
-            clean = t.strip()
+            clean = normalize_source_text(t)
             if not clean:
                 results[i] = ""
                 continue

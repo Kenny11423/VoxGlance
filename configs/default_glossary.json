@@ -7,6 +7,10 @@
     "target": "Hội đồng Quý tộc Kinin",
     "domain": "novel"
   },
+  "Kinin noble assembly": {
+    "target": "Hội đồng Quý tộc Kinin",
+    "domain": "novel"
+  },
   "pocket watch": {
     "target": "đồng hồ quả quýt",
     "domain": "general"
@@ -71,6 +75,14 @@
     "target": "Byakuya-sama",
     "domain": "anime"
   },
+  "Byakuya": {
+    "target": "Byakuya",
+    "domain": "anime"
+  },
+  "Bykuya": {
+    "target": "Byakuya",
+    "domain": "anime"
+  },
   "Renji sama": {
     "target": "Renji-sama",
     "domain": "anime"
@@ -82,5 +94,53 @@
   "Kininkai": {
     "target": "Kininkai",
     "domain": "anime"
+  },
+  "Abarai Renji": {
+    "target": "Abarai Renji",
+    "domain": "anime"
+  },
+  "Abatai Renji": {
+    "target": "Abarai Renji",
+    "domain": "anime"
+  },
+  "four noble clans": {
+    "target": "Bốn đại gia tộc quý tộc",
+    "domain": "novel"
+  },
+  "head of the family": {
+    "target": "đương chủ gia tộc",
+    "domain": "novel"
+  },
+  "in a low bow": {
+    "target": "cúi mình cung kính",
+    "domain": "novel"
+  },
+  "out of sight": {
+    "target": "khuất tầm mắt",
+    "domain": "novel"
+  },
+  "as you please": {
+    "target": "tuân lệnh ngài",
+    "domain": "novel"
+  },
+  "abbreviation for": {
+    "target": "từ viết tắt của",
+    "domain": "novel"
+  },
+  "course of events": {
+    "target": "trình tự sự kiện",
+    "domain": "novel"
+  },
+  "brushed writing": {
+    "target": "nét bút đề từ",
+    "domain": "novel"
+  },
+  "myriad of details": {
+    "target": "vô số chi tiết",
+    "domain": "novel"
+  },
+  "ill will": {
+    "target": "ác ý",
+    "domain": "novel"
   }
 }
