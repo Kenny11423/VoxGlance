@@ -8,6 +8,7 @@ from typing import Deque, List, Optional, Tuple
 from loguru import logger
 
 from src.core.cache import LRUTermCache
+from src.core.context_engine import SemanticContextEngine, SemanticDomain
 from src.core.glossary import MultilingualGlossary
 from src.core.language_detector import FastLanguageDetector, NLLB_LANGUAGE_MAP
 from src.core.tone_processor import ToneProcessor
@@ -288,6 +289,102 @@ class CloudTranslator(BaseTranslator):
         return f"[Cloud Offline]: {clean_text}"
 
 
+class LLMTranslator(BaseTranslator):
+    """Context-aware LLM Translation engine supporting Ollama, Gemini API, and OpenAI-compatible APIs."""
+
+    def __init__(
+        self,
+        provider: str = "auto",  # 'auto', 'ollama', 'gemini', 'openai'
+        model_name: Optional[str] = None,
+        endpoint: Optional[str] = None,
+        api_key: Optional[str] = None,
+    ):
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY", "")
+        self.endpoint = endpoint
+        self.model_name = model_name
+        self.provider = provider
+        self._init_provider()
+
+    def _init_provider(self) -> None:
+        if self.provider == "auto":
+            if os.getenv("GEMINI_API_KEY"):
+                self.provider = "gemini"
+            elif os.getenv("OPENAI_API_KEY"):
+                self.provider = "openai"
+            else:
+                self.provider = "ollama"
+
+        if not self.model_name:
+            if self.provider == "gemini":
+                self.model_name = "gemini-1.5-flash"
+            elif self.provider == "openai":
+                self.model_name = "gpt-4o-mini"
+            else:
+                self.model_name = "qwen2.5:3b"
+
+        if not self.endpoint and self.provider == "ollama":
+            self.endpoint = "http://localhost:11434/api/generate"
+
+    def translate(self, text: str, source_lang: str = "en", target_lang: str = "vi", context: str = "") -> str:
+        clean_text = text.strip()
+        if not clean_text:
+            return ""
+
+        prompt = (
+            f"You are a professional literary, gaming, and technical translator.\n"
+            f"Context: {context if context else 'General narrative'}\n"
+            f"Translate the following text into natural, fluent Vietnamese. "
+            f"Preserve tone, pronouns, and intent. Output ONLY the Vietnamese translation.\n\n"
+            f"Text: {clean_text}"
+        )
+
+        try:
+            import json
+            import urllib.request
+
+            if self.provider == "ollama" and self.endpoint:
+                req_data = json.dumps({
+                    "model": self.model_name,
+                    "prompt": prompt,
+                    "stream": False,
+                }).encode("utf-8")
+                req = urllib.request.Request(
+                    self.endpoint,
+                    data=req_data,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=3.0) as resp:
+                    if resp.status == 200:
+                        data = json.loads(resp.read().decode("utf-8"))
+                        ans = data.get("response", "").strip()
+                        if ans:
+                            return ans
+
+            elif self.provider == "gemini" and self.api_key:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent?key={self.api_key}"
+                payload = json.dumps({
+                    "contents": [{"parts": [{"text": prompt}]}]
+                }).encode("utf-8")
+                req = urllib.request.Request(
+                    url,
+                    data=payload,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=4.0) as resp:
+                    if resp.status == 200:
+                        data = json.loads(resp.read().decode("utf-8"))
+                        ans = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                        if ans:
+                            return ans
+
+        except Exception as e:
+            logger.debug(f"LLM translation fallback due to: {e}")
+
+        return clean_text
+
+
 def normalize_source_text(text: str) -> str:
     """Clean common OCR artifacts from source text before translation."""
     s = text.strip()
@@ -300,9 +397,10 @@ def normalize_source_text(text: str) -> str:
 class HybridTranslator(BaseTranslator):
     """Production Hybrid Translator:
     - Zero-latency language identification.
+    - Dynamic Semantic Context Engine (WSD & Idioms).
     - Glossary constraint term protection.
     - Sliding context memory for dialogue coherence.
-    - LRU Cache -> Local NMT -> Multilingual Cloud fallback.
+    - LRU Cache -> Local NMT / LLM -> Multilingual Cloud fallback.
     """
 
     def __init__(
@@ -310,19 +408,25 @@ class HybridTranslator(BaseTranslator):
         cache: Optional[LRUTermCache] = None,
         local_translator: Optional[BaseTranslator] = None,
         cloud_translator: Optional[BaseTranslator] = None,
+        llm_translator: Optional[BaseTranslator] = None,
         glossary: Optional[MultilingualGlossary] = None,
         language_detector: Optional[FastLanguageDetector] = None,
         tone_processor: Optional[ToneProcessor] = None,
+        context_engine: Optional[SemanticContextEngine] = None,
         prefer_cloud: bool = False,
-        context_window_size: int = 2,
+        prefer_llm: bool = False,
+        context_window_size: int = 3,
     ):
         self.cache = cache or LRUTermCache(maxsize=2000)
         self.local = local_translator or LocalCTranslate2Translator()
         self.cloud = cloud_translator or CloudTranslator()
+        self.llm = llm_translator or LLMTranslator()
         self.glossary = glossary or MultilingualGlossary()
         self.language_detector = language_detector or FastLanguageDetector()
         self.tone_processor = tone_processor or ToneProcessor()
+        self.context_engine = context_engine or SemanticContextEngine()
         self.prefer_cloud = prefer_cloud
+        self.prefer_llm = prefer_llm
         self.context_window_size = context_window_size
 
         # Sliding dialogue context queue
@@ -349,26 +453,41 @@ class HybridTranslator(BaseTranslator):
         if cached:
             return cached
 
-        # 3. Apply Glossary Term Masking
-        masked_text, term_replacements = self.glossary.mask_terms(clean)
+        # 3. Dynamic Semantic Context Check (Disambiguate polysemy & idioms without pre-existing glossary)
+        context_history_str = " ".join(list(self.context_history))
+        adapted_text = clean
+        if actual_source_lang == "en":
+            adapted_text, active_domain, disambig_notes = self.context_engine.resolve_context(
+                clean, context_history=context_history_str
+            )
+            if disambig_notes:
+                logger.debug(f"ContextEngine: {disambig_notes} (Active Domain: {active_domain})")
 
-        # 4. Perform Translation (Local-first or Cloud)
+        # 4. Apply Glossary Term Masking
+        masked_text, term_replacements = self.glossary.mask_terms(adapted_text)
+
+        # 5. Perform Translation (LLM / Local CTranslate2 / Cloud)
         result = ""
-        # If local model is available and language is en->vi, run local CTranslate2
-        if not self.prefer_cloud and actual_source_lang == "en" and hasattr(self.local, "_model") and self.local._model is not None:
-            result = self.local.translate(masked_text, actual_source_lang, target_lang)
+        if self.prefer_llm and hasattr(self.llm, "translate"):
+            result = self.llm.translate(masked_text, actual_source_lang, target_lang, context=context_history_str)
             if not result or result == masked_text:
-                result = self.cloud.translate(masked_text, actual_source_lang, target_lang)
-        else:
-            result = self.cloud.translate(masked_text, actual_source_lang, target_lang)
-            if not result or result.startswith("[Cloud Offline]"):
-                result = self.local.translate(masked_text, actual_source_lang, target_lang)
+                result = ""
 
-        # 5. Restore Glossary Protected Terms
+        if not result:
+            if not self.prefer_cloud and actual_source_lang == "en" and hasattr(self.local, "_model") and self.local._model is not None:
+                result = self.local.translate(masked_text, actual_source_lang, target_lang)
+                if not result or result == masked_text:
+                    result = self.cloud.translate(masked_text, actual_source_lang, target_lang)
+            else:
+                result = self.cloud.translate(masked_text, actual_source_lang, target_lang)
+                if not result or result.startswith("[Cloud Offline]"):
+                    result = self.local.translate(masked_text, actual_source_lang, target_lang)
+
+        # 6. Restore Glossary Protected Terms
         if result and term_replacements:
             result = self.glossary.unmask_terms(result, term_replacements)
 
-        # 6. Tone & Persona Contextual Refinement
+        # 7. Tone & Persona Contextual Refinement
         if result and not result.startswith("[Cloud Offline]"):
             result = self.tone_processor.process(
                 result,
@@ -376,7 +495,7 @@ class HybridTranslator(BaseTranslator):
                 context_history=list(self.context_history),
             )
 
-        # 7. Update Context Memory & Cache
+        # 8. Update Context Memory & Cache
         if result and not result.startswith("[Cloud Offline]"):
             self.cache.put(cache_key, result)
             self.cache.put(clean, result)
@@ -415,10 +534,17 @@ class HybridTranslator(BaseTranslator):
         if not texts_to_fetch:
             return results
 
+        # Dynamic Semantic Context Check for batch items
+        context_history_str = " ".join(list(self.context_history))
+        adapted_texts_to_fetch = []
+        for t in texts_to_fetch:
+            adapted_t, _, _ = self.context_engine.resolve_context(t, context_history=context_history_str)
+            adapted_texts_to_fetch.append(adapted_t)
+
         # 2. Term Masking for batch
         masked_batch = []
         replacements_batch = []
-        for t in texts_to_fetch:
+        for t in adapted_texts_to_fetch:
             m_t, reps = self.glossary.mask_terms(t)
             masked_batch.append(m_t)
             replacements_batch.append(reps)

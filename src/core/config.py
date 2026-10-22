@@ -30,13 +30,17 @@ class AsrConfig(BaseModel):
 
 
 class TranslationConfig(BaseModel):
-    engine: Literal["local", "cloud", "hybrid"] = "hybrid"
+    engine: Literal["local", "cloud", "hybrid", "llm"] = "hybrid"
     source_language: str = "auto"
     target_language: str = "vi"
     enable_glossary: bool = True
     glossary_file: Optional[str] = None
     enable_stitching: bool = True
-    context_window_size: int = 2
+    enable_context_engine: bool = True
+    context_window_size: int = 3
+    llm_provider: str = "auto"
+    llm_model: Optional[str] = None
+    llm_endpoint: Optional[str] = None
 
 
 class AudioConfig(BaseModel):

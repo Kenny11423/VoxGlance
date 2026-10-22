@@ -22,8 +22,10 @@ audio:
     max_vram_mb: 400
     language: "auto"
   translation:
-    engine: "local"        # local (ctranslate2) or cloud (groq/deepl)
+    engine: "hybrid"       # local (ctranslate2), hybrid, cloud, or llm (ollama/gemini)
     target_language: "vi"
+    enable_context_engine: true  # Automatic domain & polysemy context inference
+    context_window_size: 3
 
 visual:
   backend: "auto"          # auto, mss, dxgi, pipewire
