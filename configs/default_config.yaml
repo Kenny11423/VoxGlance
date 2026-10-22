@@ -23,6 +23,7 @@ audio:
     language: "auto"
   translation:
     engine: "hybrid"       # local (ctranslate2), hybrid, cloud, or llm (ollama/gemini)
+    mode: "novel"          # novel, comic, document, game
     target_language: "vi"
     enable_context_engine: true  # Automatic domain & polysemy context inference
     context_window_size: 3

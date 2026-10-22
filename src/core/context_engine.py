@@ -69,6 +69,7 @@ class SemanticContextEngine:
     """Real-time semantic context inference and word-sense disambiguation engine."""
 
     def __init__(self):
+        self.active_mode: Optional[str] = None
         # 1. Polysemy Disambiguation Rules:
         # Each rule defines the target ambiguous word, required context trigger keywords,
         # and the contextual replacement/synonym that disambiguates the MT model's output.
@@ -190,12 +191,23 @@ class SemanticContextEngine:
             (re.compile(r"\bget cold feet\b", re.IGNORECASE), "feel nervous and hesitant"),
         ]
 
+    def set_mode(self, mode: str) -> None:
+        """Lock or prioritize active semantic domain according to mode."""
+        self.active_mode = mode.lower().strip()
+
     def detect_domain(self, text: str, context_history: str = "") -> SemanticDomain:
         """Score and detect the primary semantic domain from text and sliding context history."""
         full_context = f"{context_history} {text}".lower()
         words = set(re.findall(r"\b[a-z]{3,}\b", full_context))
 
-        best_domain = SemanticDomain.GENERAL_CASUAL
+        # Default fallback domain based on active mode
+        if self.active_mode == "game":
+            best_domain = SemanticDomain.GAMING_RPG
+        elif self.active_mode == "document":
+            best_domain = SemanticDomain.OFFICE_ADMIN
+        else:
+            best_domain = SemanticDomain.GENERAL_CASUAL
+
         best_score = 0
 
         for domain, keywords in DOMAIN_KEYWORD_MAP.items():

@@ -26,6 +26,22 @@ class SmartTextStitcher:
         self.horizontal_overlap_threshold = horizontal_overlap_threshold
         self.max_column_drift = max_column_drift
 
+    def apply_preset(self, mode: str) -> None:
+        """Apply stitcher configuration optimized for specific reading/gaming mode."""
+        mode_lower = mode.lower()
+        if mode_lower == "novel":
+            self.line_height_multiplier = 0.85
+            self.max_column_drift = 50
+        elif mode_lower == "comic":
+            self.line_height_multiplier = 0.45
+            self.max_column_drift = 35
+        elif mode_lower == "document":
+            self.line_height_multiplier = 0.65
+            self.max_column_drift = 45
+        elif mode_lower == "game":
+            self.line_height_multiplier = 0.40
+            self.max_column_drift = 30
+
     @staticmethod
     def _is_complete_dialogue(text: str) -> bool:
         """Check if a line is a complete, self-contained dialogue quote."""

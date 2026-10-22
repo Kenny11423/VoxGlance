@@ -29,8 +29,64 @@ class AsrConfig(BaseModel):
     language: str = "auto"
 
 
+class ModePreset(BaseModel):
+    name: str
+    label: str
+    description: str
+    stitcher_multiplier: float
+    ocr_det_limit: int
+    overlay_style: str  # "solid", "comic_bubble", "document_flat", "game_hud_translucent"
+    tone_persona: str   # "literary", "casual", "formal", "gamer"
+    target_domain: str
+
+
+MODE_PRESETS: dict[str, ModePreset] = {
+    "novel": ModePreset(
+        name="novel",
+        label="Tiểu thuyết",
+        description="Văn phong trau chuốt, gộp trọn khổ văn lớn, che sạch chữ gốc 100%.",
+        stitcher_multiplier=0.85,
+        ocr_det_limit=960,
+        overlay_style="solid",
+        tone_persona="literary",
+        target_domain="animal_pet",
+    ),
+    "comic": ModePreset(
+        name="comic",
+        label="Truyện tranh",
+        description="Nhận diện bóng thoại, căn giữa chữ, mặt nạ bo tròn mềm mại.",
+        stitcher_multiplier=0.45,
+        ocr_det_limit=960,
+        overlay_style="comic_bubble",
+        tone_persona="casual",
+        target_domain="general",
+    ),
+    "document": ModePreset(
+        name="document",
+        label="Tài liệu",
+        description="Văn phong học thuật, bảo vệ số thứ tự, bullet và bảng biểu.",
+        stitcher_multiplier=0.65,
+        ocr_det_limit=1280,
+        overlay_style="document_flat",
+        tone_persona="formal",
+        target_domain="office_admin",
+    ),
+    "game": ModePreset(
+        name="game",
+        label="Trò chơi",
+        description="Độ trễ thấp (<20ms), thuật ngữ game, mặt nạ HUD mờ không che combat.",
+        stitcher_multiplier=0.40,
+        ocr_det_limit=720,
+        overlay_style="game_hud_translucent",
+        tone_persona="gamer",
+        target_domain="gaming_rpg",
+    ),
+}
+
+
 class TranslationConfig(BaseModel):
     engine: Literal["local", "cloud", "hybrid", "llm"] = "hybrid"
+    mode: Literal["novel", "comic", "document", "game"] = "novel"
     source_language: str = "auto"
     target_language: str = "vi"
     enable_glossary: bool = True

@@ -18,7 +18,8 @@ SPEECH_VERBS = r"\b(?:nói|bảo|cười|hỏi|đáp|kêu|hét|thì thầm|gật
 class ToneProcessor:
     """Enhances raw machine translation into natural, tone-appropriate Vietnamese."""
 
-    def __init__(self):
+    def __init__(self, persona_style: str = "literary"):
+        self.persona_style = persona_style
         # Patterns for harsh/mechanical pronouns that Opus-MT outputs for polite 'you'
         self._rude_pronoun_patterns = [
             (re.compile(r'\bcác người\b', re.IGNORECASE), "hai người"),
@@ -87,6 +88,10 @@ class ToneProcessor:
             (re.compile(r'chăm sóc kỹ lưỡng nội dung', re.IGNORECASE), 'chăm chú xem kỹ nội dung'),
             (re.compile(r'xé bỏ những vùng quan tâm màu đỏ', re.IGNORECASE), 'dùng mực đỏ đánh dấu những chỗ cần lưu ý'),
         ]
+
+    def set_persona(self, persona: str) -> None:
+        """Set persona style: 'literary', 'casual', 'formal', 'gamer'."""
+        self.persona_style = persona.lower().strip()
 
     def is_dialogue(self, text: str) -> bool:
         """Check if the text represents spoken dialogue."""

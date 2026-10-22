@@ -173,13 +173,50 @@ def run_visual_mode(config, roi=None, interactive=True, fullscreen=False):
         else:
             _do_snapshot()
 
+    from src.ui.settings_window import SettingsWindow
+
+    def _on_mode_changed(new_mode: str):
+        orchestrator.set_mode(new_mode)
+
+    def _on_font_size_changed(new_font: int):
+        if overlay:
+            overlay.font_size = new_font
+            overlay.update()
+
+    def _on_engine_changed(new_engine: str):
+        logger.info(f"Engine changed to: {new_engine}")
+        if orchestrator.translator:
+            if new_engine == "local":
+                orchestrator.translator.prefer_cloud = False
+                orchestrator.translator.prefer_llm = False
+            elif new_engine == "llm":
+                orchestrator.translator.prefer_llm = True
+                orchestrator.translator.prefer_cloud = False
+            else:
+                orchestrator.translator.prefer_cloud = False
+                orchestrator.translator.prefer_llm = False
+
+    settings_win = SettingsWindow(
+        config=config,
+        on_mode_changed=_on_mode_changed,
+        on_font_size_changed=_on_font_size_changed,
+        on_engine_changed=_on_engine_changed,
+    )
+    # Visible on OS taskbar, minimized on launch
+    settings_win.showMinimized()
+
     toolbar = MiniFloatingToolbar(
         on_translate_snapshot=_do_snapshot,
         on_select_region=_do_reselect,
         on_toggle_visibility=_do_toggle,
+        on_open_settings=settings_win.show_and_activate,
     )
     toolbar.show()
     toolbar.raise_()
+
+    # Apply initial translation mode
+    initial_mode = getattr(config.audio.translation, "mode", "novel")
+    orchestrator.set_mode(initial_mode)
 
     # Trigger initial snapshot immediately upon launch
     QTimer.singleShot(400, _do_snapshot)
@@ -188,7 +225,8 @@ def run_visual_mode(config, roi=None, interactive=True, fullscreen=False):
     logger.info("  VISUAL IN-PLACE LIVE TRANSLATOR ACTIVE")
     logger.info("  Chế độ dịch trực quan thay thế tại chỗ cho Game & Tài liệu.")
     logger.info(f"  Vùng quét (ROI): {active_roi if active_roi else 'Toàn màn hình (Full Screen)'}")
-    logger.info("  Thanh điều khiển [⚡ Dịch Trang Này] [🎯 Chọn Vùng] [👁️ Ẩn/Hiện] đang hiển thị ở góc trên.")
+    logger.info("  Thanh điều khiển [Dịch Trang Này] [Chọn Vùng] [Ẩn / Hiện] [Cài Đặt] đang hiển thị.")
+    logger.info("  Cửa sổ Cài Đặt đã thu nhỏ trên thanh Taskbar (Click taskbar hoặc nút 'Cài Đặt' để mở).")
     logger.info("  Nhấn Ctrl+C trong terminal để thoát.")
     logger.info("=" * 65)
 

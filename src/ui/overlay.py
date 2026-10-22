@@ -38,6 +38,9 @@ class TransparentOverlayWindow(QMainWindow):
         self.partial_updated_time: float = 0.0
 
         self.ocr_boxes: List[VisualBoundingBox] = []
+        self.overlay_style: str = "solid"
+        self._toast_message: str = ""
+        self._toast_expire_time: float = 0.0
 
         self.setWindowTitle("VoxGlance Overlay")
         self.setStyleSheet("background: transparent;")
@@ -268,7 +271,47 @@ class TransparentOverlayWindow(QMainWindow):
         if self.prev_subtitle or self.committed_subtitle or self.partial_subtitle or self.current_subtitle:
             self._draw_subtitle(painter, screen_w, screen_h)
 
+        # 3. Render Mode Switch Toast Notification
+        if self._toast_message and time.time() < self._toast_expire_time:
+            self._draw_toast(painter, screen_w, screen_h)
+
         painter.end()
+
+    def set_overlay_style(self, style: str) -> None:
+        """Update overlay visual rendering style ('solid', 'comic_bubble', 'document_flat', 'game_hud_translucent')."""
+        self.overlay_style = style.strip().lower()
+        self.update()
+
+    def show_toast(self, message: str, duration_sec: float = 2.0) -> None:
+        """Display an on-screen HUD toast notification."""
+        self._toast_message = message
+        self._toast_expire_time = time.time() + duration_sec
+        self.update()
+
+    def _draw_toast(self, painter: QPainter, screen_w: int, screen_h: int) -> None:
+        """Render modern toast pill at the top-center of the screen without any emojis."""
+        if not self._toast_message or time.time() >= self._toast_expire_time:
+            return
+
+        font = QFont("Noto Sans", 11, QFont.Weight.Bold)
+        painter.setFont(font)
+        metrics = painter.fontMetrics()
+        text_w = metrics.horizontalAdvance(self._toast_message)
+        text_h = metrics.height()
+
+        pill_w = text_w + 36
+        pill_h = text_h + 16
+        pill_x = (screen_w - pill_w) // 2
+        pill_y = 45
+
+        rect = QRect(pill_x, pill_y, pill_w, pill_h)
+        painter.setBrush(QBrush(QColor(24, 28, 36, 235)))
+        painter.setPen(QPen(QColor(59, 130, 246, 220), 1.5))
+        painter.drawRoundedRect(rect, 10, 10)
+
+        painter.setPen(QColor(255, 255, 255))
+        align = int(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
+        painter.drawText(rect, align, self._toast_message)
 
     def _draw_ocr_box(self, painter: QPainter, box: VisualBoundingBox) -> None:
         """Draw translated text directly replacing on-screen text with aesthetic in-place blending."""
@@ -283,11 +326,15 @@ class TransparentOverlayWindow(QMainWindow):
         luminance = 0.299 * bg_r + 0.587 * bg_g + 0.114 * bg_b
         is_light_doc = luminance >= 160
 
-        # Dynamic Mask Padding:
-        # On light document backgrounds (white novel pages / web readers), generously expand
-        # right padding to 45px for paragraphs so trailing words and punctuation are 100% masked
+        # Dynamic Mask Padding based on style:
         pad_y = 3
-        if is_light_doc:
+        if self.overlay_style == "game_hud_translucent":
+            pad_x_left = 3
+            pad_x_right = 10
+        elif self.overlay_style == "comic_bubble":
+            pad_x_left = 8
+            pad_x_right = 8
+        elif is_light_doc:
             pad_x_left = 6
             pad_x_right = 45 if box.width >= 200 else 20
         else:
@@ -304,35 +351,47 @@ class TransparentOverlayWindow(QMainWindow):
         font = QFont("Noto Sans", max(9, font_size), font_weight)
         painter.setFont(font)
 
-        # 3. Dynamic Height Calculation to prevent translated text from overflowing the mask
+        # 3. Dynamic Height Calculation & Alignment
         inner_pad_x = 6
         usable_w = max(20, bg_w - (inner_pad_x * 2))
-        alignment = getattr(box, "alignment", "left")
 
-        if alignment == "left":
-            align_flags = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap)
-        else:
+        if self.overlay_style == "comic_bubble":
             align_flags = int(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap)
+        else:
+            align_flags = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap)
 
         metrics = painter.fontMetrics()
         text_bounds = metrics.boundingRect(QRect(0, 0, usable_w, 10000), align_flags, display_text)
         needed_text_h = text_bounds.height()
 
-        # Expand mask height if wrapped translation needs more vertical space than original English box
         min_box_h = box.height + (pad_y * 2)
         bg_h = max(min_box_h, needed_text_h + 8)
         bg_rect = QRect(bg_x, bg_y, bg_w, bg_h)
 
-        if is_light_doc:
-            # 100% opaque mask matching background, seamlessly eliminating underlying original text
+        # 4. Render Background Mask according to Overlay Style
+        if self.overlay_style == "comic_bubble":
+            painter.setBrush(QBrush(QColor(bg_r, bg_g, bg_b, 255)))
+            painter.setPen(QPen(QColor(bg_r, bg_g, bg_b, 180), 1.5))
+            painter.drawRoundedRect(bg_rect, 14, 14)
+        elif self.overlay_style == "game_hud_translucent":
+            # 85% translucent dark HUD pill with subtle border to prevent blocking game graphics
+            painter.setBrush(QBrush(QColor(bg_r, bg_g, bg_b, 215)))
+            painter.setPen(QPen(QColor(bg_r, bg_g, bg_b, 160), 1.0))
+            painter.drawRoundedRect(bg_rect, 5, 5)
+        elif self.overlay_style == "document_flat":
             painter.setBrush(QBrush(QColor(bg_r, bg_g, bg_b, 255)))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRect(bg_rect)
         else:
-            # 3D Game / Dark mode: 88% opaque rounded mask with subtle border
-            painter.setBrush(QBrush(QColor(bg_r, bg_g, bg_b, 235)))
-            painter.setPen(QPen(QColor(bg_r, bg_g, bg_b, 100), 1.0))
-            painter.drawRoundedRect(bg_rect, 4, 4)
+            # Default Novel / solid mode
+            if is_light_doc:
+                painter.setBrush(QBrush(QColor(bg_r, bg_g, bg_b, 255)))
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.drawRect(bg_rect)
+            else:
+                painter.setBrush(QBrush(QColor(bg_r, bg_g, bg_b, 235)))
+                painter.setPen(QPen(QColor(bg_r, bg_g, bg_b, 100), 1.0))
+                painter.drawRoundedRect(bg_rect, 4, 4)
 
         # 4. Text Rect layout anchored neatly to top of mask
         text_rect = QRect(bg_rect.x() + inner_pad_x, bg_rect.y() + 4, usable_w, max(needed_text_h, bg_rect.height() - 8))

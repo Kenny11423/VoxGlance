@@ -71,6 +71,42 @@ class VoxGlanceOrchestrator:
         if self.visual_pipeline:
             self.visual_pipeline.set_roi(roi)
 
+    def set_mode(self, mode: str) -> None:
+        """Apply specialized translation mode across stitcher, context engine, tone processor, and overlay."""
+        clean_mode = mode.lower().strip()
+        from src.core.config import MODE_PRESETS
+        preset = MODE_PRESETS.get(clean_mode)
+        if not preset:
+            logger.warning(f"Unknown mode '{mode}', defaulting to 'novel'.")
+            clean_mode = "novel"
+            preset = MODE_PRESETS["novel"]
+
+        self.config.audio.translation.mode = clean_mode
+
+        # 1. Update stitcher in visual pipeline
+        if self.visual_pipeline and hasattr(self.visual_pipeline, "stitcher"):
+            self.visual_pipeline.stitcher.apply_preset(clean_mode)
+
+        # 2. Update context engine & tone processor in translator
+        if self.translator:
+            if hasattr(self.translator, "context_engine"):
+                self.translator.context_engine.set_mode(clean_mode)
+            if hasattr(self.translator, "tone_processor"):
+                self.translator.tone_processor.set_persona(preset.tone_persona)
+
+        # 3. Update overlay visual style & show toast
+        if self.overlay:
+            if hasattr(self.overlay, "set_overlay_style"):
+                self.overlay.set_overlay_style(preset.overlay_style)
+            if hasattr(self.overlay, "show_toast"):
+                self.overlay.show_toast(f"Chế độ: {preset.label}")
+
+        logger.info(f"Switched translation mode to: {preset.label} ({clean_mode})")
+
+        # 4. Trigger instant re-translation of current screen/ROI if visual pipeline is active
+        if self.visual_pipeline:
+            self.visual_pipeline.trigger_now()
+
     def _handle_subtitle(self, token) -> None:
         """Route subtitle token to the transparent overlay."""
         if self.overlay:

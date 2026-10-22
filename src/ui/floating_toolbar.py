@@ -14,11 +14,13 @@ class MiniFloatingToolbar(QWidget):
         on_translate_snapshot: Callable[[], None],
         on_select_region: Callable[[], None],
         on_toggle_visibility: Callable[[], None],
+        on_open_settings: Optional[Callable[[], None]] = None,
     ):
         super().__init__()
         self.on_translate_snapshot = on_translate_snapshot
         self.on_select_region = on_select_region
         self.on_toggle_visibility = on_toggle_visibility
+        self.on_open_settings = on_open_settings
 
         self._drag_start_pos: Optional[QPoint] = None
         self._init_ui()
@@ -62,28 +64,35 @@ class MiniFloatingToolbar(QWidget):
         """)
 
         # Button 1: Instant Snapshot Translate
-        self.btn_snap = QPushButton("⚡ Dịch Trang Này")
-        self.btn_snap.setToolTip("Chụp & dịch tức thì trang hiện tại (F9)")
+        self.btn_snap = QPushButton("Dịch Trang Này")
+        self.btn_snap.setToolTip("Chụp & dịch tức thì trang hiện tại")
         self.btn_snap.clicked.connect(self._handle_snapshot)
         layout.addWidget(self.btn_snap)
 
         # Button 2: Re-select Region (ROI)
-        self.btn_roi = QPushButton("🎯 Chọn Vùng")
+        self.btn_roi = QPushButton("Chọn Vùng")
         self.btn_roi.setToolTip("Dùng chuột kéo chọn vùng mới")
         self.btn_roi.clicked.connect(self._handle_reselect)
         layout.addWidget(self.btn_roi)
 
         # Button 3: Toggle Hide/Show Overlay
-        self.btn_toggle = QPushButton("👁️ Ẩn/Hiện")
+        self.btn_toggle = QPushButton("Ẩn / Hiện")
         self.btn_toggle.setToolTip("Tạm ẩn lớp dịch để xem chữ gốc tiếng Anh")
         self.btn_toggle.clicked.connect(self._handle_toggle)
         layout.addWidget(self.btn_toggle)
+
+        # Button 4: Settings Window
+        self.btn_settings = QPushButton("Cài Đặt")
+        self.btn_settings.setToolTip("Mở cửa sổ Cài Đặt và Chế độ dịch")
+        if self.on_open_settings:
+            self.btn_settings.clicked.connect(self.on_open_settings)
+        layout.addWidget(self.btn_settings)
 
         # Position at top-right corner of screen
         screen = QApplication.primaryScreen()
         if screen:
             geo = screen.geometry()
-            self.move(geo.width() - 340, 45)
+            self.move(geo.width() - 420, 45)
 
         # Keyboard shortcuts
         from PyQt6.QtGui import QKeySequence, QShortcut
