@@ -38,31 +38,31 @@ class MiniFloatingToolbar(QWidget):
         layout.setContentsMargins(8, 4, 8, 4)
         layout.setSpacing(6)
 
-        # Style sheet for modern soft light glass pill
+        # Style sheet for warm soft light golden wood pill
         self.setStyleSheet("""
             QWidget {
-                background-color: rgba(255, 255, 255, 245);
-                border: 1px solid rgba(203, 213, 225, 220);
+                background-color: rgba(250, 246, 238, 245);
+                border: 1px solid rgba(220, 206, 182, 220);
                 border-radius: 16px;
             }
             QPushButton {
-                background-color: #F8FAFC;
-                color: #1E293B;
-                border: 1px solid #E2E8F0;
+                background-color: #FFFDF9;
+                color: #362B20;
+                border: 1px solid #E2D7C3;
                 border-radius: 10px;
                 padding: 4px 10px;
                 font-size: 12px;
                 font-weight: 600;
             }
             QPushButton:hover {
-                background-color: #F1F5F9;
-                border-color: #CBD5E1;
-                color: #0F172A;
+                background-color: #F4ECE0;
+                border-color: #C28B38;
+                color: #20170F;
             }
             QPushButton:pressed {
-                background-color: #2563EB;
+                background-color: #C28B38;
                 color: #FFFFFF;
-                border-color: #1D4ED8;
+                border-color: #9E671D;
             }
         """)
 

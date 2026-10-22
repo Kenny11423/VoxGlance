@@ -305,11 +305,11 @@ class TransparentOverlayWindow(QMainWindow):
         pill_y = 45
 
         rect = QRect(pill_x, pill_y, pill_w, pill_h)
-        painter.setBrush(QBrush(QColor(255, 255, 255, 245)))
-        painter.setPen(QPen(QColor(37, 99, 235, 220), 1.5))
+        painter.setBrush(QBrush(QColor(250, 246, 238, 245)))
+        painter.setPen(QPen(QColor(194, 139, 56, 230), 1.5))
         painter.drawRoundedRect(rect, 10, 10)
 
-        painter.setPen(QColor(15, 23, 42))
+        painter.setPen(QColor(44, 34, 24))
         align = int(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         painter.drawText(rect, align, self._toast_message)
 
