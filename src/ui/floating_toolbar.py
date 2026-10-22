@@ -105,7 +105,7 @@ class MiniFloatingToolbar(QWidget):
 
     def _handle_snapshot(self) -> None:
         if self.on_translate_snapshot:
-            self.btn_snap.setText("⏳ Đang dịch...")
+            self.btn_snap.setText("Đang dịch...")
             QApplication.processEvents()
             import threading
             from PyQt6.QtCore import QTimer
@@ -113,7 +113,7 @@ class MiniFloatingToolbar(QWidget):
                 try:
                     self.on_translate_snapshot()
                 finally:
-                    QTimer.singleShot(0, lambda: self.btn_snap.setText("⚡ Dịch Trang Này"))
+                    QTimer.singleShot(0, lambda: self.btn_snap.setText("Dịch Trang Này"))
             threading.Thread(target=_worker, daemon=True).start()
 
     def _handle_reselect(self) -> None:

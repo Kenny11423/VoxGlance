@@ -144,12 +144,14 @@ def run_visual_mode(config, roi=None, interactive=False, fullscreen=False, initi
     if active_roi:
         orchestrator.set_roi(active_roi)
 
-    orchestrator.start()
+    # Start orchestrator in STANDBY mode (paused until user activates)
+    orchestrator.start(auto_resume_visual=False)
 
     # Callback actions for Floating Toolbar and Settings Window
     def _do_snapshot():
         if orchestrator.visual_pipeline:
-            orchestrator.visual_pipeline.trigger_now()
+            settings_win.set_activation_state(True)
+            orchestrator.resume_visual()
 
     def _do_reselect():
         slurp_p = shutil.which("slurp")
@@ -196,6 +198,13 @@ def run_visual_mode(config, roi=None, interactive=False, fullscreen=False, initi
                 orchestrator.translator.prefer_cloud = False
                 orchestrator.translator.prefer_llm = False
 
+    def _on_toggle_activation(active: bool):
+        if active:
+            orchestrator.resume_visual()
+        else:
+            orchestrator.pause_visual()
+            overlay.clear_ocr_boxes()
+
     settings_win = SettingsWindow(
         config=config,
         on_mode_changed=_on_mode_changed,
@@ -204,6 +213,8 @@ def run_visual_mode(config, roi=None, interactive=False, fullscreen=False, initi
         on_translate_now=_do_snapshot,
         on_select_roi=_do_reselect,
         on_toggle_visibility=_do_toggle,
+        on_toggle_activation=_on_toggle_activation,
+        initial_active=False,
     )
 
     toolbar = MiniFloatingToolbar(
@@ -215,22 +226,19 @@ def run_visual_mode(config, roi=None, interactive=False, fullscreen=False, initi
     toolbar.show()
     toolbar.raise_()
 
-    # Apply initial translation mode
+    # Apply initial translation mode (in standby mode)
     active_mode = initial_mode or getattr(config.audio.translation, "mode", "novel")
     settings_win.set_active_mode(active_mode)
     orchestrator.set_mode(active_mode)
 
-    # Open Settings Window directly on screen so user can choose modes without commands
+    # Open Settings Window directly on screen so user can configure and activate
     settings_win.show_and_activate()
 
-    # Trigger initial snapshot immediately upon launch
-    QTimer.singleShot(400, _do_snapshot)
-
     logger.info("=" * 65)
-    logger.info("  OMNITRANSLATOR ĐÃ KHỞI ĐỘNG THÀNH CÔNG")
+    logger.info("  OMNITRANSLATOR ĐÃ KHỞI ĐỘNG (CHẾ ĐỘ CHỜ KÍCH HOẠT)")
     logger.info("  Cửa sổ Cài Đặt đang mở trực tiếp trên màn hình.")
-    logger.info("  Bạn có thể chọn chế độ dịch (Tiểu thuyết, Truyện tranh, Tài liệu, Trò chơi)")
-    logger.info("  hoặc cấu hình cỡ chữ / động cơ mà không cần gõ lệnh dòng lệnh.")
+    logger.info("  1. Chọn chế độ: Tiểu thuyết, Truyện tranh, Tài liệu, Trò chơi.")
+    logger.info("  2. Bấm [Kích Hoạt Dịch Thuật] hoặc [Bắt đầu Dịch & Thu nhỏ] để bắt đầu dịch.")
     logger.info("=" * 65)
 
     try:

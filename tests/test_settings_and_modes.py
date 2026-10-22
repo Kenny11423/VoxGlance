@@ -88,7 +88,7 @@ def test_settings_window_interactions(qapp):
     captured_modes = []
     captured_fonts = []
     captured_engines = []
-    action_counts = {"translate": 0, "roi": 0, "toggle": 0}
+    action_counts = {"translate": 0, "roi": 0, "toggle": 0, "active": []}
 
     win = SettingsWindow(
         config=config,
@@ -98,10 +98,13 @@ def test_settings_window_interactions(qapp):
         on_translate_now=lambda: action_counts.update({"translate": action_counts["translate"] + 1}),
         on_select_roi=lambda: action_counts.update({"roi": action_counts["roi"] + 1}),
         on_toggle_visibility=lambda: action_counts.update({"toggle": action_counts["toggle"] + 1}),
+        on_toggle_activation=lambda a: action_counts["active"].append(a),
+        initial_active=False,
     )
 
     # Check window title has no emojis
     assert "OmniTranslator - Cài Đặt" in win.windowTitle()
+    assert not win.is_activated
 
     # Change mode
     win.set_active_mode("game")
@@ -118,9 +121,31 @@ def test_settings_window_interactions(qapp):
     # Direct action triggers
     win._handle_translate_now()
     assert action_counts["translate"] == 1
+    assert win.is_activated is True
 
     win._handle_select_roi()
     assert action_counts["roi"] == 1
 
     win._handle_toggle_vis()
     assert action_counts["toggle"] == 1
+
+    # Activation toggle
+    win.set_activation_state(False)
+    assert not win.is_activated
+    win._handle_toggle_activation()
+    assert win.is_activated is True
+    assert True in action_counts["active"]
+
+
+def test_orchestrator_standby_and_activation():
+    """Verify orchestrator respects standby mode on startup and toggles visual active state."""
+    from src.core.orchestrator import VoxGlanceOrchestrator
+    config = AppConfig()
+    orch = VoxGlanceOrchestrator(config=config, overlay=None, enable_audio=False, enable_ocr=True)
+    orch.start(auto_resume_visual=False)
+    assert not orch.is_visual_active
+    orch.resume_visual()
+    assert orch.is_visual_active
+    orch.pause_visual()
+    assert not orch.is_visual_active
+    orch.stop()

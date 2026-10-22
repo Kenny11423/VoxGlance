@@ -53,7 +53,26 @@ class VisualStreamingPipeline:
         self._cooldown_until: float = 0.0
 
         self._is_running = False
+        self._is_paused = False
         self._thread: Optional[threading.Thread] = None
+
+    @property
+    def is_paused(self) -> bool:
+        """Check whether the capture loop is currently paused."""
+        return self._is_paused
+
+    def pause(self) -> None:
+        """Pause continuous capture loop and clear active overlays."""
+        self._is_paused = True
+        self.clear()
+        logger.info("VisualStreamingPipeline paused.")
+
+    def resume(self) -> None:
+        """Resume continuous capture loop."""
+        self._is_paused = False
+        if not self._is_running:
+            self.start()
+        logger.info("VisualStreamingPipeline resumed.")
 
     def clear(self) -> None:
         """Clear active overlay and reset state signatures."""
@@ -93,6 +112,9 @@ class VisualStreamingPipeline:
 
     def _capture_loop(self) -> None:
         while self._is_running:
+            if getattr(self, "_is_paused", False):
+                time.sleep(0.1)
+                continue
             start_time = time.time()
             try:
                 now = time.time()

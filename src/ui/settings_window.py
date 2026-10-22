@@ -32,6 +32,8 @@ class SettingsWindow(QWidget):
         on_translate_now: Optional[Callable[[], None]] = None,
         on_select_roi: Optional[Callable[[], None]] = None,
         on_toggle_visibility: Optional[Callable[[], None]] = None,
+        on_toggle_activation: Optional[Callable[[bool], None]] = None,
+        initial_active: bool = False,
     ):
         super().__init__()
         self.config = config
@@ -41,6 +43,8 @@ class SettingsWindow(QWidget):
         self.on_translate_now = on_translate_now
         self.on_select_roi = on_select_roi
         self.on_toggle_visibility = on_toggle_visibility
+        self.on_toggle_activation = on_toggle_activation
+        self.is_activated = initial_active
 
         self.current_mode = getattr(config.audio.translation, "mode", "novel")
         self._init_ui()
@@ -258,8 +262,11 @@ class SettingsWindow(QWidget):
         actions_layout = QHBoxLayout(grp_actions)
         actions_layout.setSpacing(10)
 
+        self.btn_action_activate = QPushButton("Kích Hoạt Dịch Thuật" if not self.is_activated else "Tạm Dừng Dịch")
+        self.btn_action_activate.setObjectName("btnActivate" if not self.is_activated else "btnPause")
+        self.btn_action_activate.clicked.connect(self._handle_toggle_activation)
+
         btn_action_translate = QPushButton("Dịch Trang Này")
-        btn_action_translate.setObjectName("btnPrimary")
         btn_action_translate.clicked.connect(self._handle_translate_now)
 
         btn_action_roi = QPushButton("Chọn Vùng Dịch")
@@ -268,6 +275,7 @@ class SettingsWindow(QWidget):
         btn_action_toggle = QPushButton("Ẩn / Hiện Dịch")
         btn_action_toggle.clicked.connect(self._handle_toggle_vis)
 
+        actions_layout.addWidget(self.btn_action_activate)
         actions_layout.addWidget(btn_action_translate)
         actions_layout.addWidget(btn_action_roi)
         actions_layout.addWidget(btn_action_toggle)
@@ -279,6 +287,17 @@ class SettingsWindow(QWidget):
         status_layout = QVBoxLayout(grp_status)
         status_layout.setSpacing(4)
 
+        self.lbl_activation = QLabel(
+            "Trạng thái dịch: Đang hoạt động (Đã kích hoạt)"
+            if self.is_activated
+            else "Trạng thái dịch: Chưa kích hoạt (Tạm dừng)"
+        )
+        self.lbl_activation.setStyleSheet(
+            "color: #3FB950; font-weight: bold; font-size: 13px;"
+            if self.is_activated
+            else "color: #D29922; font-weight: bold; font-size: 13px;"
+        )
+
         lbl_gpu = QLabel("Phần cứng: NVIDIA GeForce RTX 2050 (4GB VRAM)")
         lbl_mode_status = QLabel(f"Chế độ hiện tại: {self.current_mode.capitalize()}")
         self.lbl_mode_status = lbl_mode_status
@@ -286,6 +305,7 @@ class SettingsWindow(QWidget):
         lbl_offline = QLabel("Trạng thái mạng: 100% Offline (Không gọi API bên ngoài)")
         lbl_offline.setObjectName("lblStatus")
 
+        status_layout.addWidget(self.lbl_activation)
         status_layout.addWidget(lbl_gpu)
         status_layout.addWidget(lbl_mode_status)
         status_layout.addWidget(lbl_offline)
@@ -341,10 +361,48 @@ class SettingsWindow(QWidget):
     def _handle_apply(self) -> None:
         if self.on_mode_changed:
             self.on_mode_changed(self.current_mode)
+        # Ensure translation is activated when user starts from settings
+        if not self.is_activated:
+            self.set_activation_state(True)
+            if self.on_toggle_activation:
+                self.on_toggle_activation(True)
         # Minimize window to taskbar after apply
         self.showMinimized()
 
+    def set_activation_state(self, active: bool) -> None:
+        """Update UI activation indicator and button styling."""
+        self.is_activated = active
+        if active:
+            self.btn_action_activate.setText("Tạm Dừng Dịch")
+            self.btn_action_activate.setStyleSheet("""
+                background-color: #854D0E;
+                border: 1px solid #D29922;
+                color: #FFFFFF;
+            """)
+            self.lbl_activation.setText("Trạng thái dịch: Đang hoạt động (Đã kích hoạt)")
+            self.lbl_activation.setStyleSheet("color: #3FB950; font-weight: bold; font-size: 13px;")
+        else:
+            self.btn_action_activate.setText("Kích Hoạt Dịch Thuật")
+            self.btn_action_activate.setStyleSheet("""
+                background-color: #238636;
+                border: 1px solid #2EA043;
+                color: #FFFFFF;
+            """)
+            self.lbl_activation.setText("Trạng thái dịch: Chưa kích hoạt (Tạm dừng)")
+            self.lbl_activation.setStyleSheet("color: #D29922; font-weight: bold; font-size: 13px;")
+
+    def _handle_toggle_activation(self) -> None:
+        new_state = not self.is_activated
+        self.set_activation_state(new_state)
+        if self.on_toggle_activation:
+            self.on_toggle_activation(new_state)
+
     def _handle_translate_now(self) -> None:
+        # Also ensure activation when explicitly asking to translate current page
+        if not self.is_activated:
+            self.set_activation_state(True)
+            if self.on_toggle_activation:
+                self.on_toggle_activation(True)
         if self.on_translate_now:
             self.on_translate_now()
 

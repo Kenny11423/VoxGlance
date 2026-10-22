@@ -103,8 +103,8 @@ class VoxGlanceOrchestrator:
 
         logger.info(f"Switched translation mode to: {preset.label} ({clean_mode})")
 
-        # 4. Trigger instant re-translation of current screen/ROI if visual pipeline is active
-        if self.visual_pipeline:
+        # 4. Trigger instant re-translation of current screen/ROI only if visual pipeline is active and not paused
+        if self.visual_pipeline and self._is_active and not getattr(self.visual_pipeline, "is_paused", False):
             self.visual_pipeline.trigger_now()
 
     def _handle_subtitle(self, token) -> None:
@@ -120,7 +120,7 @@ class VoxGlanceOrchestrator:
         if self.overlay:
             self.overlay.update_ocr_boxes(boxes)
 
-    def start(self) -> None:
+    def start(self, auto_resume_visual: bool = True) -> None:
         """Start all active pipelines."""
         if self._is_active:
             return
@@ -138,8 +138,27 @@ class VoxGlanceOrchestrator:
         # 2. Start Visual OCR Pipeline if enabled
         if self.visual_pipeline and self.enable_ocr:
             self.visual_pipeline.start()
+            if not auto_resume_visual:
+                self.visual_pipeline.pause()
 
         logger.info("Orchestrator fully running.")
+
+    def pause_visual(self) -> None:
+        """Pause visual OCR capture loop."""
+        if self.visual_pipeline:
+            self.visual_pipeline.pause()
+
+    def resume_visual(self) -> None:
+        """Resume visual OCR capture loop and trigger immediate snapshot."""
+        if self.visual_pipeline:
+            self.visual_pipeline.resume()
+            self.visual_pipeline.trigger_now()
+
+    @property
+    def is_visual_active(self) -> bool:
+        if not self.visual_pipeline:
+            return False
+        return not self.visual_pipeline.is_paused
 
     def stop(self) -> None:
         """Clean shutdown of all pipelines and controllers."""
