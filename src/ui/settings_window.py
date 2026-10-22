@@ -64,101 +64,101 @@ class SettingsWindow(QWidget):
             | Qt.WindowType.WindowCloseButtonHint
         )
 
-        # Ultra-clean, lightweight dark aesthetic
+        # Ultra-clean, lightweight soft light aesthetic
         self.setStyleSheet("""
             QWidget {
-                background-color: #0D1117;
-                color: #E6EDF3;
+                background-color: #F8FAFC;
+                color: #1E293B;
                 font-family: 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             }
             QFrame#cardFrame {
-                background-color: #161B22;
-                border: 1px solid #30363D;
+                background-color: #FFFFFF;
+                border: 1px solid #E2E8F0;
                 border-radius: 8px;
                 padding: 10px;
             }
             QLabel#sectionHeader {
-                color: #8B949E;
+                color: #64748B;
                 font-size: 11px;
-                font-weight: bold;
+                font-weight: 700;
                 letter-spacing: 0.5px;
             }
             QPushButton {
-                background-color: #21262D;
-                color: #C9D1D9;
-                border: 1px solid #30363D;
+                background-color: #FFFFFF;
+                color: #334155;
+                border: 1px solid #CBD5E1;
                 border-radius: 6px;
                 padding: 6px 12px;
                 font-size: 12px;
                 font-weight: 600;
             }
             QPushButton:hover {
-                background-color: #30363D;
-                border-color: #8B949E;
-                color: #FFFFFF;
+                background-color: #F1F5F9;
+                border-color: #94A3B8;
+                color: #0F172A;
             }
             QPushButton:pressed {
-                background-color: #1F6FEB;
-                border-color: #58A6FF;
+                background-color: #E2E8F0;
+                border-color: #64748B;
             }
             /* Segmented Checkable Buttons for Modes and Engines */
             QPushButton#modeBtn, QPushButton#engineBtn {
-                background-color: #161B22;
-                border: 1px solid #30363D;
+                background-color: #FFFFFF;
+                border: 1px solid #CBD5E1;
                 border-radius: 6px;
                 padding: 8px 6px;
                 font-size: 12px;
                 font-weight: 500;
-                color: #C9D1D9;
+                color: #334155;
             }
             QPushButton#modeBtn:hover, QPushButton#engineBtn:hover {
-                background-color: #21262D;
-                border-color: #58A6FF;
-                color: #FFFFFF;
+                background-color: #F8FAFC;
+                border-color: #3B82F6;
+                color: #1D4ED8;
             }
             QPushButton#modeBtn:checked, QPushButton#engineBtn:checked {
-                background-color: #1F6FEB;
-                border: 1px solid #58A6FF;
+                background-color: #2563EB;
+                border: 1px solid #1D4ED8;
                 color: #FFFFFF;
-                font-weight: bold;
+                font-weight: 700;
             }
             QPushButton#btnHeroActivate {
-                background-color: #238636;
-                border: 1px solid #2EA043;
+                background-color: #16A34A;
+                border: 1px solid #15803D;
                 color: #FFFFFF;
                 border-radius: 6px;
                 font-size: 12px;
-                font-weight: bold;
+                font-weight: 700;
                 padding: 6px 14px;
             }
             QPushButton#btnHeroActivate:hover {
-                background-color: #2EA043;
+                background-color: #15803D;
             }
             QPushButton#btnHeroPause {
-                background-color: #854D0E;
-                border: 1px solid #D29922;
+                background-color: #D97706;
+                border: 1px solid #B45309;
                 color: #FFFFFF;
                 border-radius: 6px;
                 font-size: 12px;
-                font-weight: bold;
+                font-weight: 700;
                 padding: 6px 14px;
             }
             QPushButton#btnHeroPause:hover {
-                background-color: #A16207;
+                background-color: #B45309;
             }
             QSlider::groove:horizontal {
-                border: 1px solid #30363D;
-                height: 4px;
-                background: #21262D;
+                border: 1px solid #E2E8F0;
+                height: 5px;
+                background: #E2E8F0;
                 border-radius: 2px;
             }
             QSlider::sub-page:horizontal {
-                background: #1F6FEB;
+                background: #2563EB;
                 border-radius: 2px;
             }
             QSlider::handle:horizontal {
-                background: #58A6FF;
-                border: 1px solid #C9D1D9;
+                background: #FFFFFF;
+                border: 2px solid #2563EB;
                 width: 14px;
                 margin-top: -5px;
                 margin-bottom: -5px;
@@ -184,7 +184,7 @@ class SettingsWindow(QWidget):
 
         lbl_app_name = QLabel("OmniTranslator")
         lbl_app_name.setFont(QFont("Noto Sans", 13, QFont.Weight.Bold))
-        lbl_app_name.setStyleSheet("color: #FFFFFF; font-size: 14px;")
+        lbl_app_name.setStyleSheet("color: #0F172A; font-size: 14px;")
 
         self.lbl_activation = QLabel(
             "Trạng thái: Đang hoạt động"
@@ -192,9 +192,9 @@ class SettingsWindow(QWidget):
             else "Trạng thái: Chưa kích hoạt (Tạm dừng)"
         )
         self.lbl_activation.setStyleSheet(
-            "color: #3FB950; font-size: 12px; font-weight: bold;"
+            "color: #15803D; font-size: 12px; font-weight: bold;"
             if self.is_activated
-            else "color: #D29922; font-size: 12px; font-weight: bold;"
+            else "color: #B45309; font-size: 12px; font-weight: bold;"
         )
 
         status_text_layout.addWidget(lbl_app_name)
@@ -332,7 +332,7 @@ class SettingsWindow(QWidget):
         self.slider_font.setValue(current_font)
 
         self.lbl_font_val = QLabel(f"{current_font} pt")
-        self.lbl_font_val.setStyleSheet("color: #58A6FF; font-weight: bold; font-size: 12px; min-width: 38px;")
+        self.lbl_font_val.setStyleSheet("color: #2563EB; font-weight: bold; font-size: 12px; min-width: 38px;")
 
         self.slider_font.valueChanged.connect(self._on_font_slider_changed)
 
@@ -347,7 +347,7 @@ class SettingsWindow(QWidget):
         # 5. FOOTER: Hardware Status & Window Controls
         # -------------------------------------------------------------
         lbl_hw = QLabel("GPU: RTX 2050 (4GB VRAM) • 100% Offline")
-        lbl_hw.setStyleSheet("color: #8B949E; font-size: 11px;")
+        lbl_hw.setStyleSheet("color: #64748B; font-size: 11px;")
         self.lbl_mode_status = QLabel(f"Chế độ hiện tại: {self.current_mode.capitalize()}")
         self.lbl_mode_status.hide()  # Hidden but preserved for test compatibility
 
@@ -359,8 +359,8 @@ class SettingsWindow(QWidget):
 
         btn_apply = QPushButton("Bắt đầu Dịch & Thu nhỏ")
         btn_apply.setStyleSheet("""
-            background-color: #238636;
-            border: 1px solid #2EA043;
+            background-color: #16A34A;
+            border: 1px solid #15803D;
             color: #FFFFFF;
             font-weight: bold;
         """)
@@ -409,30 +409,30 @@ class SettingsWindow(QWidget):
             self.btn_action_activate.setText("Tạm Dừng Dịch")
             self.btn_action_activate.setObjectName("btnHeroPause")
             self.btn_action_activate.setStyleSheet("""
-                background-color: #854D0E;
-                border: 1px solid #D29922;
+                background-color: #D97706;
+                border: 1px solid #B45309;
                 color: #FFFFFF;
                 border-radius: 6px;
                 font-size: 12px;
-                font-weight: bold;
+                font-weight: 700;
                 padding: 6px 14px;
             """)
             self.lbl_activation.setText("Trạng thái: Đang hoạt động")
-            self.lbl_activation.setStyleSheet("color: #3FB950; font-size: 12px; font-weight: bold;")
+            self.lbl_activation.setStyleSheet("color: #15803D; font-size: 12px; font-weight: bold;")
         else:
             self.btn_action_activate.setText("Kích Hoạt Dịch")
             self.btn_action_activate.setObjectName("btnHeroActivate")
             self.btn_action_activate.setStyleSheet("""
-                background-color: #238636;
-                border: 1px solid #2EA043;
+                background-color: #16A34A;
+                border: 1px solid #15803D;
                 color: #FFFFFF;
                 border-radius: 6px;
                 font-size: 12px;
-                font-weight: bold;
+                font-weight: 700;
                 padding: 6px 14px;
             """)
             self.lbl_activation.setText("Trạng thái: Chưa kích hoạt (Tạm dừng)")
-            self.lbl_activation.setStyleSheet("color: #D29922; font-size: 12px; font-weight: bold;")
+            self.lbl_activation.setStyleSheet("color: #B45309; font-size: 12px; font-weight: bold;")
 
     def _handle_toggle_activation(self) -> None:
         new_state = not self.is_activated

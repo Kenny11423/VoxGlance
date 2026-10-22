@@ -38,28 +38,31 @@ class MiniFloatingToolbar(QWidget):
         layout.setContentsMargins(8, 4, 8, 4)
         layout.setSpacing(6)
 
-        # Style sheet for modern dark glass pill
+        # Style sheet for modern soft light glass pill
         self.setStyleSheet("""
             QWidget {
-                background-color: rgba(24, 28, 36, 230);
-                border: 1px solid rgba(255, 255, 255, 35);
-                border-radius: 18px;
+                background-color: rgba(255, 255, 255, 245);
+                border: 1px solid rgba(203, 213, 225, 220);
+                border-radius: 16px;
             }
             QPushButton {
-                background-color: rgba(255, 255, 255, 20);
-                color: #FFFFFF;
-                border: 1px solid rgba(255, 255, 255, 30);
-                border-radius: 12px;
+                background-color: #F8FAFC;
+                color: #1E293B;
+                border: 1px solid #E2E8F0;
+                border-radius: 10px;
                 padding: 4px 10px;
                 font-size: 12px;
-                font-weight: bold;
+                font-weight: 600;
             }
             QPushButton:hover {
-                background-color: rgba(59, 130, 246, 200);
-                border-color: rgba(96, 165, 250, 255);
+                background-color: #F1F5F9;
+                border-color: #CBD5E1;
+                color: #0F172A;
             }
             QPushButton:pressed {
-                background-color: rgba(37, 99, 235, 255);
+                background-color: #2563EB;
+                color: #FFFFFF;
+                border-color: #1D4ED8;
             }
         """)
 
