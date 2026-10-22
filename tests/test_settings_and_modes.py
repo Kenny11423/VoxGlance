@@ -88,12 +88,16 @@ def test_settings_window_interactions(qapp):
     captured_modes = []
     captured_fonts = []
     captured_engines = []
+    action_counts = {"translate": 0, "roi": 0, "toggle": 0}
 
     win = SettingsWindow(
         config=config,
         on_mode_changed=lambda m: captured_modes.append(m),
         on_font_size_changed=lambda f: captured_fonts.append(f),
         on_engine_changed=lambda e: captured_engines.append(e),
+        on_translate_now=lambda: action_counts.update({"translate": action_counts["translate"] + 1}),
+        on_select_roi=lambda: action_counts.update({"roi": action_counts["roi"] + 1}),
+        on_toggle_visibility=lambda: action_counts.update({"toggle": action_counts["toggle"] + 1}),
     )
 
     # Check window title has no emojis
@@ -110,3 +114,13 @@ def test_settings_window_interactions(qapp):
     # Engine toggled
     win._on_engine_toggled("local", True)
     assert "local" in captured_engines
+
+    # Direct action triggers
+    win._handle_translate_now()
+    assert action_counts["translate"] == 1
+
+    win._handle_select_roi()
+    assert action_counts["roi"] == 1
+
+    win._handle_toggle_vis()
+    assert action_counts["toggle"] == 1

@@ -91,7 +91,7 @@ def run_demo_overlay(config):
     sys.exit(app.exec())
 
 
-def run_visual_mode(config, roi=None, interactive=True, fullscreen=False):
+def run_visual_mode(config, roi=None, interactive=False, fullscreen=False, initial_mode=None):
     """Run dedicated On-Screen In-Place Visual Live Translator for Game and Documents."""
     import shutil
     import subprocess
@@ -102,8 +102,8 @@ def run_visual_mode(config, roi=None, interactive=True, fullscreen=False):
 
     active_roi = roi
 
-    # Default to interactive selection if no explicit ROI and not fullscreen
-    if not active_roi and not fullscreen:
+    # Interactive selection only if explicitly requested via CLI
+    if interactive and not active_roi and not fullscreen:
         slurp_path = shutil.which("slurp")
         if slurp_path and os.environ.get("WAYLAND_DISPLAY"):
             logger.info("👉 DÙNG CHUỘT KÉO CHỌN VÙNG TRUYỆN/GAME TRÊN MÀN HÌNH (nhấn Esc để hủy)...")
@@ -146,7 +146,7 @@ def run_visual_mode(config, roi=None, interactive=True, fullscreen=False):
 
     orchestrator.start()
 
-    # Callback actions for Floating Toolbar
+    # Callback actions for Floating Toolbar and Settings Window
     def _do_snapshot():
         if orchestrator.visual_pipeline:
             orchestrator.visual_pipeline.trigger_now()
@@ -201,9 +201,10 @@ def run_visual_mode(config, roi=None, interactive=True, fullscreen=False):
         on_mode_changed=_on_mode_changed,
         on_font_size_changed=_on_font_size_changed,
         on_engine_changed=_on_engine_changed,
+        on_translate_now=_do_snapshot,
+        on_select_roi=_do_reselect,
+        on_toggle_visibility=_do_toggle,
     )
-    # Visible on OS taskbar, minimized on launch
-    settings_win.showMinimized()
 
     toolbar = MiniFloatingToolbar(
         on_translate_snapshot=_do_snapshot,
@@ -215,19 +216,21 @@ def run_visual_mode(config, roi=None, interactive=True, fullscreen=False):
     toolbar.raise_()
 
     # Apply initial translation mode
-    initial_mode = getattr(config.audio.translation, "mode", "novel")
-    orchestrator.set_mode(initial_mode)
+    active_mode = initial_mode or getattr(config.audio.translation, "mode", "novel")
+    settings_win.set_active_mode(active_mode)
+    orchestrator.set_mode(active_mode)
+
+    # Open Settings Window directly on screen so user can choose modes without commands
+    settings_win.show_and_activate()
 
     # Trigger initial snapshot immediately upon launch
     QTimer.singleShot(400, _do_snapshot)
 
     logger.info("=" * 65)
-    logger.info("  VISUAL IN-PLACE LIVE TRANSLATOR ACTIVE")
-    logger.info("  Chế độ dịch trực quan thay thế tại chỗ cho Game & Tài liệu.")
-    logger.info(f"  Vùng quét (ROI): {active_roi if active_roi else 'Toàn màn hình (Full Screen)'}")
-    logger.info("  Thanh điều khiển [Dịch Trang Này] [Chọn Vùng] [Ẩn / Hiện] [Cài Đặt] đang hiển thị.")
-    logger.info("  Cửa sổ Cài Đặt đã thu nhỏ trên thanh Taskbar (Click taskbar hoặc nút 'Cài Đặt' để mở).")
-    logger.info("  Nhấn Ctrl+C trong terminal để thoát.")
+    logger.info("  OMNITRANSLATOR ĐÃ KHỞI ĐỘNG THÀNH CÔNG")
+    logger.info("  Cửa sổ Cài Đặt đang mở trực tiếp trên màn hình.")
+    logger.info("  Bạn có thể chọn chế độ dịch (Tiểu thuyết, Truyện tranh, Tài liệu, Trò chơi)")
+    logger.info("  hoặc cấu hình cỡ chữ / động cơ mà không cần gõ lệnh dòng lệnh.")
     logger.info("=" * 65)
 
     try:
@@ -277,9 +280,9 @@ def main():
     parser = argparse.ArgumentParser(description="Real-time Multimodal Live Translator (Visual & Audio)")
     parser.add_argument(
         "--mode",
-        choices=["visual", "live", "demo", "cli", "overlay"],
+        choices=["visual", "live", "demo", "cli", "overlay", "novel", "comic", "document", "game"],
         default="visual",
-        help="Execution mode (default: visual - In-place Screen Translation)",
+        help="Chế độ chạy (Mặc định: visual - tự động mở Cửa sổ Cài Đặt để chọn chế độ trực tiếp)",
     )
     parser.add_argument("--source", choices=["auto", "system", "mic"], default="auto", help="Audio source")
     parser.add_argument("--ocr", action="store_true", help="Enable on-screen Visual OCR capture")
@@ -290,7 +293,7 @@ def main():
     parser.add_argument("--config", default=None, help="Path to config YAML")
     args = parser.parse_args()
 
-    enable_ocr = args.ocr or (args.mode == "visual") and not args.no_ocr
+    enable_ocr = args.ocr or (args.mode in ["visual", "novel", "comic", "document", "game"]) and not args.no_ocr
     roi_tuple = tuple(args.roi) if args.roi else None
 
     config = load_config(args.config)
@@ -303,8 +306,9 @@ def main():
     vram_status = memory.get_vram_info()
     logger.info(f"Current VRAM: {vram_status.used_mb:.1f}MB / {config.system.target_vram_mb}MB (Status: {'SAFE' if vram_status.is_safe else 'ALERT'})")
 
-    if args.mode == "visual":
-        run_visual_mode(config, roi=roi_tuple, interactive=args.interactive, fullscreen=args.fullscreen)
+    if args.mode in ["visual", "novel", "comic", "document", "game"]:
+        init_mode = args.mode if args.mode in ["novel", "comic", "document", "game"] else None
+        run_visual_mode(config, roi=roi_tuple, interactive=args.interactive, fullscreen=args.fullscreen, initial_mode=init_mode)
     elif args.mode == "live":
         run_live_mode(config, audio_source=args.source, enable_ocr=enable_ocr)
     elif args.mode in ["demo", "overlay"]:

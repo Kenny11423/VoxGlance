@@ -29,12 +29,18 @@ class SettingsWindow(QWidget):
         on_mode_changed: Optional[Callable[[str], None]] = None,
         on_font_size_changed: Optional[Callable[[int], None]] = None,
         on_engine_changed: Optional[Callable[[str], None]] = None,
+        on_translate_now: Optional[Callable[[], None]] = None,
+        on_select_roi: Optional[Callable[[], None]] = None,
+        on_toggle_visibility: Optional[Callable[[], None]] = None,
     ):
         super().__init__()
         self.config = config
         self.on_mode_changed = on_mode_changed
         self.on_font_size_changed = on_font_size_changed
         self.on_engine_changed = on_engine_changed
+        self.on_translate_now = on_translate_now
+        self.on_select_roi = on_select_roi
+        self.on_toggle_visibility = on_toggle_visibility
 
         self.current_mode = getattr(config.audio.translation, "mode", "novel")
         self._init_ui()
@@ -42,8 +48,8 @@ class SettingsWindow(QWidget):
     def _init_ui(self) -> None:
         # Standard desktop application window visible in the OS taskbar
         self.setWindowTitle("OmniTranslator - Cài Đặt")
-        self.resize(520, 560)
-        self.setMinimumSize(480, 500)
+        self.resize(540, 640)
+        self.setMinimumSize(500, 580)
 
         # Ensure it is a standard top-level window in the taskbar
         self.setWindowFlags(
@@ -247,7 +253,28 @@ class SettingsWindow(QWidget):
 
         main_layout.addWidget(grp_display)
 
-        # SECTION 4: Hardware & System Status
+        # SECTION 4: Direct Translation Actions
+        grp_actions = QGroupBox("Thao Tác Trực Tiếp")
+        actions_layout = QHBoxLayout(grp_actions)
+        actions_layout.setSpacing(10)
+
+        btn_action_translate = QPushButton("Dịch Trang Này")
+        btn_action_translate.setObjectName("btnPrimary")
+        btn_action_translate.clicked.connect(self._handle_translate_now)
+
+        btn_action_roi = QPushButton("Chọn Vùng Dịch")
+        btn_action_roi.clicked.connect(self._handle_select_roi)
+
+        btn_action_toggle = QPushButton("Ẩn / Hiện Dịch")
+        btn_action_toggle.clicked.connect(self._handle_toggle_vis)
+
+        actions_layout.addWidget(btn_action_translate)
+        actions_layout.addWidget(btn_action_roi)
+        actions_layout.addWidget(btn_action_toggle)
+
+        main_layout.addWidget(grp_actions)
+
+        # SECTION 5: Hardware & System Status
         grp_status = QGroupBox("Thông tin Hệ thống")
         status_layout = QVBoxLayout(grp_status)
         status_layout.setSpacing(4)
@@ -275,7 +302,7 @@ class SettingsWindow(QWidget):
         btn_close = QPushButton("Ẩn Cửa Sổ")
         btn_close.clicked.connect(self.hide)
 
-        btn_apply = QPushButton("Áp Dụng")
+        btn_apply = QPushButton("Bắt đầu Dịch & Thu nhỏ")
         btn_apply.setObjectName("btnPrimary")
         btn_apply.clicked.connect(self._handle_apply)
 
@@ -285,6 +312,15 @@ class SettingsWindow(QWidget):
         btn_bar.addWidget(btn_apply)
 
         main_layout.addLayout(btn_bar)
+
+        # Center window on screen
+        screen = QApplication.primaryScreen()
+        if screen:
+            geo = screen.availableGeometry()
+            self.move(
+                max(0, (geo.width() - self.width()) // 2),
+                max(0, (geo.height() - self.height()) // 2),
+            )
 
     def _on_mode_toggled(self, mode: str, checked: bool) -> None:
         if checked:
@@ -307,6 +343,18 @@ class SettingsWindow(QWidget):
             self.on_mode_changed(self.current_mode)
         # Minimize window to taskbar after apply
         self.showMinimized()
+
+    def _handle_translate_now(self) -> None:
+        if self.on_translate_now:
+            self.on_translate_now()
+
+    def _handle_select_roi(self) -> None:
+        if self.on_select_roi:
+            self.on_select_roi()
+
+    def _handle_toggle_vis(self) -> None:
+        if self.on_toggle_visibility:
+            self.on_toggle_visibility()
 
     def set_active_mode(self, mode: str) -> None:
         """Programmatically update active mode radio button."""
