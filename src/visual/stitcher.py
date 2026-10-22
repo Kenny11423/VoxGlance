@@ -145,9 +145,9 @@ class SmartTextStitcher:
                 should_merge = False
             else:
                 # Dynamic line gap tolerance:
-                # Unfinished lines get up to 0.95x height (bridges loose line wraps within clause)
+                # Unfinished lines get up to 1.45x height (bridges loose line wraps within clause, e.g. web novel CSS)
                 # Finished lines get strict in-paragraph multiplier (0.60x) to avoid bridging paragraph breaks
-                allowed_multiplier = 0.95 if not last_finished else self.line_height_multiplier
+                allowed_multiplier = 1.45 if not last_finished else self.line_height_multiplier
                 is_vertically_adjacent = -avg_h * 0.5 <= vertical_gap <= avg_h * allowed_multiplier
 
                 should_merge = (

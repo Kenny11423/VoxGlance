@@ -34,7 +34,7 @@ visual:
     det_model: "dbnet"
     rec_model: "svtr"
     max_vram_mb: 300
-    confidence_threshold: 0.6
+    confidence_threshold: 0.40
   cache:
     max_entries: 2000      # LRU Cache for repetitive UI terms
 

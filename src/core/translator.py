@@ -106,7 +106,7 @@ class LocalCTranslate2Translator(BaseTranslator):
                     [tokens],
                     beam_size=3,
                     repetition_penalty=1.2,
-                    max_decoding_length=150,
+                    max_decoding_length=350,
                 )
                 out_tokens = [tok for tok in results[0].hypotheses[0] if tok not in ["</s>", ">>vie<<"]]
                 vi_text = self._sp_target.decode(out_tokens).strip()
@@ -151,7 +151,7 @@ class LocalCTranslate2Translator(BaseTranslator):
                 batch_tokens,
                 beam_size=3,
                 repetition_penalty=1.2,
-                max_decoding_length=150,
+                max_decoding_length=350,
             )
             for idx, res in zip(valid_indices, batch_results):
                 out_tokens = [tok for tok in res.hypotheses[0] if tok not in ["</s>", ">>vie<<"]]

@@ -15,7 +15,9 @@ from src.core.ipc import VisualBoundingBox
 from src.core.memory import MemoryController
 
 
+import os
 import re
+import sys
 
 VIETNAMESE_ACCENTED_CHARS = set(
     "àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ"
@@ -27,21 +29,51 @@ LOG_KEYWORD_RE = re.compile(
     re.IGNORECASE,
 )
 
-SYSTEM_LOG_PATTERNS = [
-    "src.core", "src.visual", "FastOCREngine", "LocalCTranslate2",
-    "VoxGlance", "MemoryController", "WaylandGrim", "det_limit_side_len",
-    "subtitles_queue", "visual_boxes_queue", ".venv", "venv/bin",
-    "dich trang nay", "dang dich", "chon vung", "an/hien", "ẩn/hiện", "chọn vùng", "dịch trang",
-    "masterpost", "follow"
+SYSTEM_CODE_PATTERNS = [
+    "src.core", "src.visual", "fastocrengine", "localctranslate2",
+    "voxglance", "waylandgrim", "det_limit_side_len",
+    "subtitles_queue", "visual_boxes_queue", ".venv", "venv/bin"
 ]
+
+UI_BUTTON_PATTERNS = [
+    "dich trang nay", "dang dich", "chon vung", "an/hien", "ẩn/hiện", "chọn vùng", "dịch trang",
+    "masterpost", "follow", "+ follow"
+]
+UI_BUTTON_ALNUM = {re.sub(r"[^a-zA-Z0-9]", "", p.lower()) for p in UI_BUTTON_PATTERNS if p}
 
 TIMESTAMP_RE = re.compile(r"(\d{4}-\d{2}-\d{2}|\d{2}:\d{2}:\d{2})")
 TELEMETRY_RE = re.compile(r"(\d+%\s*\+*\s*\d+%|\d+\s*°?C|\d+\.?\d*\s*(GB|MB|FPS))")
 
 
+def _preload_nvidia_libs() -> None:
+    """Preload bundled NVIDIA CUDA/cuDNN/cuBLAS shared libraries with RTLD_GLOBAL."""
+    import ctypes
+    import glob
+    try:
+        for p in sys.path:
+            if "site-packages" in p:
+                for lib_dir in glob.glob(os.path.join(p, "nvidia", "*", "lib")):
+                    if os.path.isdir(lib_dir):
+                        if lib_dir not in os.environ.get("LD_LIBRARY_PATH", ""):
+                            os.environ["LD_LIBRARY_PATH"] = f"{lib_dir}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+                        for fname in sorted(os.listdir(lib_dir)):
+                            if fname.endswith(".so") or ".so." in fname:
+                                try:
+                                    ctypes.CDLL(os.path.join(lib_dir, fname), mode=ctypes.RTLD_GLOBAL)
+                                except Exception:
+                                    pass
+    except Exception:
+        pass
+
+
 def restore_word_boundaries(text: str) -> str:
     """Insert missing spaces between words often concatenated by OCR engine."""
     s = text.strip()
+    # Normalize rogue backticks into single quote, tildes/special brackets into standard punctuation
+    s = s.replace("`", "'").replace("’", "'").replace("‘", "'")
+    s = re.sub(r"[<>{}\|~^]", " ", s)
+    # Collapse excessively repeated character runs (e.g. Noooooo -> Noo) without dropping line
+    s = re.sub(r"([a-zA-Z])\1{3,}", r"\1\1", s)
     s = re.sub(r"([,.:;!?])([a-zA-Z])", r"\1 \2", s)
     s = re.sub(r"([a-z])([A-Z])", r"\1 \2", s)
     s = re.sub(r"(\d+)-([a-zA-Z])", r"\1 - \2", s)
@@ -61,42 +93,54 @@ def is_noise_or_self_rendered(text: str, score: float = 1.0) -> bool:
         return True
 
     # 2. Skip if text contains ISO timestamps or system telemetry
-    if TIMESTAMP_RE.search(s) or TELEMETRY_RE.search(s) or LOG_KEYWORD_RE.search(s):
+    if TIMESTAMP_RE.search(s) or TELEMETRY_RE.search(s):
+        return True
+
+    # Check terminal log headers: only uppercase log levels with brackets/pipes e.g. "| ERROR |", "DEBUG:"
+    if re.search(r"(?:\||\b)(?:INFO|DEBUG|CRITICAL|Traceback|NVML)(?:\||\b)", s):
         return True
 
     s_lower = s.lower()
     s_alnum = re.sub(r"[^a-zA-Z0-9]", "", s_lower)
 
     # 3. Skip URLs or browser address bar items
-    if ".tumblr.com" in s_lower or "http://" in s_lower or "https://" in s_lower:
+    if ".tumblr.com" in s_lower or s_lower.startswith("http://") or s_lower.startswith("https://"):
         return True
 
-    # 4. Skip terminal logs and toolbar buttons (case-insensitive & whitespace-resilient)
-    for pattern in SYSTEM_LOG_PATTERNS:
-        p_alnum = re.sub(r"[^a-zA-Z0-9]", "", pattern.lower())
-        if p_alnum and p_alnum in s_alnum:
-            return True
-
-    # 5. Skip repeated character runs of 3+ (case-insensitive, e.g. uuu, lll, Lll) or syllable loops
-    if re.search(r"([a-zA-Z])\1{2,}", s_lower) or re.search(r"([a-zA-Z]{2,3})\1{2,}", s_lower):
+    # 4. Skip terminal logs and system code paths
+    if any(p in s_lower for p in SYSTEM_CODE_PATTERNS):
         return True
 
-    # 6. Skip words containing digits sandwiched between letters (e.g. toic6the)
+    # Skip standalone toolbar / web buttons, never multi-word prose
+    if len(s_alnum) <= 20 and s_alnum in UI_BUTTON_ALNUM:
+        return True
+
+    # 5. Skip words containing digits sandwiched between letters (e.g. toic6the)
     if re.search(r"[a-zA-Z]\d[a-zA-Z]", s):
         return True
 
-    # 7. Skip anomalous bracketed / markup garbage (allows normal [ ] and quotes)
-    if re.search(r"[<>{}\|~^`]", s):
+    # 6. Skip corrupted scanline markup noise (brackets, pipes, carets), allowing quotes and normal punctuation
+    if re.search(r"[<>{}\|^]", s):
         return True
+
+    # 7. Skip unnaturally merged nonsense words with repeating character/syllable glitches
+    words = s.split()
+    for w in words:
+        w_clean = re.sub(r'[^a-zA-Z]', '', w)
+        if len(w_clean) > 15 and re.search(r'([a-zA-Z])\1{2,}', w_clean):
+            return True
+        if len(w_clean) > 15 and re.search(r'([a-zA-Z]{2,3})\1{2,}', w_clean):
+            return True
+        if len(w_clean) >= 30 and not w.lower().startswith('http'):
+            return True
 
     # 8. Skip purely numeric, isolated digits, or punctuation noise (e.g. "23 88 27", "108", "0568")
     letters = sum(1 for c in s if c.isalpha() or '\u4e00' <= c <= '\u9fff' or '\u3040' <= c <= '\u30ff' or '\uac00' <= c <= '\ud7af')
-    if letters < 2 and len(s) > 1:
+    if letters < 1:
         return True
 
-    # 9. Skip isolated 1-2 character fragments unless common valid English words
-    VALID_SHORT_WORDS = {"i", "a", "an", "as", "at", "be", "by", "do", "go", "he", "if", "in", "is", "it", "me", "my", "no", "of", "on", "or", "so", "to", "up", "us", "we", "ok"}
-    if len(s) <= 2 and s.lower() not in VALID_SHORT_WORDS:
+    # 9. Skip isolated 1-character fragments unless common valid English words
+    if len(s) == 1 and s.lower() not in {"i", "a"}:
         return True
 
     return False
@@ -116,7 +160,7 @@ class FastOCREngine(BaseOCREngine):
     def __init__(
         self,
         max_vram_mb: int = 300,
-        confidence_threshold: float = 0.55,
+        confidence_threshold: float = 0.40,
         cache: Optional[LRUTermCache] = None,
         memory_controller: Optional[MemoryController] = None,
     ):
@@ -129,16 +173,30 @@ class FastOCREngine(BaseOCREngine):
         self._init_engine()
 
     def _init_engine(self) -> None:
-        """Initialize ONNX Runtime RapidOCR backend."""
+        """Initialize ONNX Runtime RapidOCR backend with CUDA acceleration and CPU fallback."""
+        _preload_nvidia_libs()
         try:
             from rapidocr_onnxruntime import RapidOCR
-            # det_limit_side_len=1920 ensures 1080p full HD screens maintain pixel fidelity
-            # use_cls=False prevents the classifier from mistakenly flipping normal horizontal lines upside-down
-            self._engine = RapidOCR(det_limit_side_len=1920, use_cls=False)
-            self._engine_ready = True
-            logger.info(
-                f"FastOCREngine initialized with RapidOCR (ONNX Runtime, det_limit_side_len=1920, use_cls=False, Threshold: {self.confidence_threshold})"
-            )
+            # 1. Attempt CUDA GPU acceleration for sub-second recognition
+            try:
+                self._engine = RapidOCR(
+                    det_use_cuda=True,
+                    rec_use_cuda=True,
+                    det_limit_side_len=960,
+                    rec_batch_num=6,
+                    use_cls=False,
+                )
+                self._engine_ready = True
+                logger.info(
+                    f"FastOCREngine initialized on CUDA (det_limit_side_len=960, Threshold: {self.confidence_threshold})"
+                )
+            except Exception as cuda_err:
+                logger.warning(f"RapidOCR CUDA initialization failed ({cuda_err}), falling back to CPU.")
+                self._engine = RapidOCR(det_limit_side_len=960, use_cls=False)
+                self._engine_ready = True
+                logger.info(
+                    f"FastOCREngine initialized on CPU (det_limit_side_len=960, Threshold: {self.confidence_threshold})"
+                )
         except Exception as e:
             logger.warning(f"Could not load RapidOCR: {e}. OCR will run in fallback mock mode.")
             self._engine_ready = False

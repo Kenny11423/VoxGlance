@@ -19,10 +19,10 @@ class VisualStreamingPipeline:
 
     def __init__(
         self,
-        fps_limit: int = 6,
+        fps_limit: int = 10,
         diff_threshold: float = 0.05,
         scroll_threshold: float = 0.035,
-        settle_delay: float = 0.55,
+        settle_delay: float = 0.20,
         capture: Optional[BaseScreenCapture] = None,
         differencer: Optional[FrameDifferencer] = None,
         ocr_engine: Optional[BaseOCREngine] = None,
@@ -64,11 +64,11 @@ class VisualStreamingPipeline:
 
     def _sync_rendered_reference(self) -> None:
         """Synchronize differencer reference frame with the rendered overlay to prevent false-motion trigger."""
-        time.sleep(0.08)
+        time.sleep(0.02)
         rendered_frame = self.capture.grab(bbox=self.roi)
         if self.differencer:
             self.differencer.last_frame = self.differencer._to_grayscale(rendered_frame)
-        self._cooldown_until = time.time() + 0.35
+        self._cooldown_until = time.time() + 0.10
 
     def set_roi(self, roi: Optional[Tuple[int, int, int, int]]) -> None:
         """Dynamically update Region of Interest (x, y, width, height)."""
@@ -222,8 +222,8 @@ class VisualStreamingPipeline:
             # 1. Clear any active overlay first
             if self._has_active_overlay or self.on_boxes:
                 self.clear()
-                # Sleep 120ms to guarantee OS compositor clears the screen buffer
-                time.sleep(0.12)
+                # Brief 40ms pause for compositor to clear display buffer
+                time.sleep(0.04)
 
             # 2. Grab 100% clean frame
             clean_frame = self.capture.grab(bbox=self.roi)
