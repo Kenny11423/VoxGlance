@@ -276,10 +276,23 @@ class TransparentOverlayWindow(QMainWindow):
         if not display_text:
             return
 
-        # 1. Background Mask Calculation with dynamic expansion
-        pad_x_left = 4
-        pad_x_right = 16  # Generous right padding to fully cover trailing punctuation & italic overhang
+        # 1. Background Sampling and Light Document Detection
+        bg_r, bg_g, bg_b = box.bg_color if box.bg_color else (20, 24, 33)
+        outline_color = getattr(box, "outline_color", None)
+
+        luminance = 0.299 * bg_r + 0.587 * bg_g + 0.114 * bg_b
+        is_light_doc = luminance >= 160
+
+        # Dynamic Mask Padding:
+        # On light document backgrounds (white novel pages / web readers), generously expand
+        # right padding to 45px for paragraphs so trailing words and punctuation are 100% masked
         pad_y = 3
+        if is_light_doc:
+            pad_x_left = 6
+            pad_x_right = 45 if box.width >= 200 else 20
+        else:
+            pad_x_left = 4
+            pad_x_right = 16
 
         bg_x = max(0, box.x - pad_x_left)
         bg_y = max(0, box.y - pad_y)
@@ -309,13 +322,6 @@ class TransparentOverlayWindow(QMainWindow):
         min_box_h = box.height + (pad_y * 2)
         bg_h = max(min_box_h, needed_text_h + 8)
         bg_rect = QRect(bg_x, bg_y, bg_w, bg_h)
-
-        bg_r, bg_g, bg_b = box.bg_color if box.bg_color else (20, 24, 33)
-        outline_color = getattr(box, "outline_color", None)
-
-        # Check if background is light document mode (luminance >= 160)
-        luminance = 0.299 * bg_r + 0.587 * bg_g + 0.114 * bg_b
-        is_light_doc = luminance >= 160
 
         if is_light_doc:
             # 100% opaque mask matching background, seamlessly eliminating underlying original text

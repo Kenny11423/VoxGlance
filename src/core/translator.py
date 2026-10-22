@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections import deque
 import os
 import re
-from typing import Deque, List, Optional
+from typing import Deque, List, Optional, Tuple
 from loguru import logger
 
 from src.core.cache import LRUTermCache
@@ -44,6 +44,39 @@ def _preload_nvidia_libs() -> None:
                                     pass
     except Exception:
         pass
+
+
+def split_sentences(text: str) -> List[str]:
+    """Split multi-sentence text into individual sentences for NMT models.
+
+    Prevents single-sentence NMT models (e.g. MarianMT) from prematurely terminating
+    and omitting subsequent sentences in multi-sentence paragraphs.
+    """
+    clean = text.strip()
+    if not clean:
+        return []
+
+    # Sentence boundary delimiter: [.!?…]+ followed by optional quote/bracket and whitespace,
+    # ONLY when followed by an uppercase letter, digit, or opening quote/bracket.
+    # Keeps dialogue tags attached: '"Hello!" she said.' remains 1 sentence.
+    pattern = r'([.!?…]+["\'”’»\)\]]*\s+(?=[A-Z0-9"\'“‘«\[\(]))'
+    parts = re.split(pattern, clean)
+    sentences = []
+    curr = ""
+    for part in parts:
+        curr += part
+        if re.search(r'[.!?…]+["\'”’»\)\]]*\s+$', curr):
+            # Exclude numbered list prefix like '1.', '2.', '10.'
+            if re.match(r'^\s*(?:\(?\d+[\.\)]|[A-Za-z][\.\)])\s*$', curr):
+                continue
+            # Exclude standard honorifics / abbreviations ending in dot
+            if not re.search(r'\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|vs|etc|e\.g|i\.e)\.\s+$', curr, re.IGNORECASE):
+                if curr.strip():
+                    sentences.append(curr.strip())
+                curr = ""
+    if curr.strip():
+        sentences.append(curr.strip())
+    return sentences if sentences else [clean]
 
 
 class LocalCTranslate2Translator(BaseTranslator):
@@ -95,6 +128,12 @@ class LocalCTranslate2Translator(BaseTranslator):
         if not clean_text or (len(clean_text) == 1 and not clean_text.isalnum()):
             return ""
 
+        # Check if text contains multiple sentences - translate each to avoid MarianMT truncation
+        sents = split_sentences(clean_text)
+        if len(sents) > 1:
+            trans_sents = self.translate_batch(sents, source_lang=source_lang, target_lang=target_lang)
+            return " ".join(ts for ts in trans_sents if ts)
+
         # Bridge __TERM_(\d+)__ to TOKEN\1X to prevent MarianMT SentencePiece infinite underscore loop
         has_terms = "__TERM_" in clean_text
         input_text = re.sub(r'__TERM_(\d+)__', r'TOKEN\1X', clean_text) if has_terms else clean_text
@@ -112,7 +151,12 @@ class LocalCTranslate2Translator(BaseTranslator):
                 vi_text = self._sp_target.decode(out_tokens).strip()
                 if vi_text:
                     if has_terms:
-                        vi_text = re.sub(r'[\b\[<{_]*T(?:O|0)?KEN\s*(\d+)\s*X?[\b\]>}_]*', r'__TERM_\1__', vi_text, flags=re.IGNORECASE)
+                        vi_text = re.sub(
+                            r'[\b\[<{_]*T[O0]?K[E3]?N?\s*(\d+)\s*X?[\b\]>}_]*',
+                            r'__TERM_\1__',
+                            vi_text,
+                            flags=re.IGNORECASE,
+                        )
                     return vi_text
             except Exception as e:
                 logger.error(f"CTranslate2 inference error: {e}")
@@ -120,50 +164,78 @@ class LocalCTranslate2Translator(BaseTranslator):
         return clean_text
 
     def translate_batch(self, texts: List[str], source_lang: str = "en", target_lang: str = "vi") -> List[str]:
-        """Translate a batch of sentences simultaneously in a single GPU pass (<50ms for 30+ sentences)."""
+        """Translate a batch of sentences simultaneously in a single GPU pass with multi-sentence preservation."""
         if not texts:
             return []
         if self._model is None or self._sp_source is None or self._sp_target is None:
             return texts
 
-        clean_texts = [t.strip() for t in texts]
-        has_terms_list = ["__TERM_" in t for t in clean_texts]
-        safe_texts = [
-            re.sub(r'__TERM_(\d+)__', r'TOKEN\1X', t) if has else t
-            for t, has in zip(clean_texts, has_terms_list)
+        # Flatten multi-sentence texts into individual sentences
+        mapping: List[Tuple[int, int]] = []  # (item_idx, sentence_count)
+        flat_sentences: List[str] = []
+        for idx, t in enumerate(texts):
+            clean_t = t.strip()
+            if not clean_t:
+                mapping.append((idx, 0))
+            else:
+                sents = split_sentences(clean_t)
+                mapping.append((idx, len(sents)))
+                flat_sentences.extend(sents)
+
+        if not flat_sentences:
+            return [t.strip() for t in texts]
+
+        has_terms_list = ["__TERM_" in s for s in flat_sentences]
+        safe_sentences = [
+            re.sub(r'__TERM_(\d+)__', r'TOKEN\1X', s) if has else s
+            for s, has in zip(flat_sentences, has_terms_list)
         ]
 
         batch_tokens = []
         valid_indices = []
 
-        for idx, t in enumerate(safe_texts):
-            if t and not (len(t) == 1 and not t.isalnum()):
-                tokens = [">>vie<<"] + self._sp_source.encode(t, out_type=str) + ["</s>"]
+        for idx, s in enumerate(safe_sentences):
+            if s and not (len(s) == 1 and not s.isalnum()):
+                tokens = [">>vie<<"] + self._sp_source.encode(s, out_type=str) + ["</s>"]
                 batch_tokens.append(tokens)
                 valid_indices.append(idx)
 
-        if not batch_tokens:
-            return clean_texts
+        flat_results = list(safe_sentences)
+        if batch_tokens:
+            try:
+                batch_results = self._model.translate_batch(
+                    batch_tokens,
+                    beam_size=3,
+                    repetition_penalty=1.2,
+                    max_decoding_length=350,
+                )
+                for idx, res in zip(valid_indices, batch_results):
+                    out_tokens = [tok for tok in res.hypotheses[0] if tok not in ["</s>", ">>vie<<"]]
+                    vi_text = self._sp_target.decode(out_tokens).strip()
+                    if vi_text:
+                        if has_terms_list[idx]:
+                            vi_text = re.sub(
+                                r'[\b\[<{_]*T[O0]?K[E3]?N?\s*(\d+)\s*X?[\b\]>}_]*',
+                                r'__TERM_\1__',
+                                vi_text,
+                                flags=re.IGNORECASE,
+                            )
+                        flat_results[idx] = vi_text
+            except Exception as e:
+                logger.error(f"CTranslate2 batch inference error: {e}")
 
-        results_out = list(clean_texts)
-        try:
-            batch_results = self._model.translate_batch(
-                batch_tokens,
-                beam_size=3,
-                repetition_penalty=1.2,
-                max_decoding_length=350,
-            )
-            for idx, res in zip(valid_indices, batch_results):
-                out_tokens = [tok for tok in res.hypotheses[0] if tok not in ["</s>", ">>vie<<"]]
-                vi_text = self._sp_target.decode(out_tokens).strip()
-                if vi_text:
-                    if has_terms_list[idx]:
-                        vi_text = re.sub(r'[\b\[<{_]*T(?:O|0)?KEN\s*(\d+)\s*X?[\b\]>}_]*', r'__TERM_\1__', vi_text, flags=re.IGNORECASE)
-                    results_out[idx] = vi_text
-        except Exception as e:
-            logger.error(f"CTranslate2 batch inference error: {e}")
+        # Recombine flattened sentences back into original text structures
+        final_results = []
+        curr_offset = 0
+        for item_idx, count in mapping:
+            if count == 0:
+                final_results.append(texts[item_idx].strip())
+            else:
+                joined = " ".join(flat_results[curr_offset : curr_offset + count]).strip()
+                final_results.append(joined if joined else texts[item_idx].strip())
+                curr_offset += count
 
-        return results_out
+        return final_results
 
 
 class CloudTranslator(BaseTranslator):

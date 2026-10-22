@@ -137,7 +137,7 @@ class MultilingualGlossary:
             patterns = [
                 re.compile(re.escape(token), re.IGNORECASE),
                 re.compile(r'[_\[<{]*TERM[_\s]*' + idx + r'[_\]>}]*', re.IGNORECASE),
-                re.compile(r'[_\[<{]*T(?:O|0)?KEN[_\s]*' + idx + r'[X\s_\]>}]*', re.IGNORECASE),
+                re.compile(r'[\b\[<{_]*T[O0]?K[E3]?N?\s*' + idx + r'\s*X?[\b\]>}_]*', re.IGNORECASE),
                 re.compile(r'[_\[<{]*BAR[_\s]*' + idx + r'[_\]>}]*', re.IGNORECASE),
             ]
             for p in patterns:

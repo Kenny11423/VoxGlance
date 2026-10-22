@@ -142,5 +142,149 @@
   "ill will": {
     "target": "ác ý",
     "domain": "novel"
+  },
+  "Personnel Record Administration Bureau": {
+    "target": "Cục Quản lý Hồ sơ Nhân sự",
+    "domain": "novel"
+  },
+  "Personnel record Administration Bureau": {
+    "target": "Cục Quản lý Hồ sơ Nhân sự",
+    "domain": "novel"
+  },
+  "Court Guards Soldier Record Administration Bureau": {
+    "target": "Cục Quản lý Hồ sơ Binh sĩ Hộ Đình",
+    "domain": "novel"
+  },
+  "Shino Academy": {
+    "target": "Học viện Shino",
+    "domain": "anime"
+  },
+  "Komamura Sajin": {
+    "target": "Komamura Sajin",
+    "domain": "anime"
+  },
+  "Sajin Komamura": {
+    "target": "Sajin Komamura",
+    "domain": "anime"
+  },
+  "Tetsuzaemon Iba": {
+    "target": "Iba Tetsuzaemon",
+    "domain": "anime"
+  },
+  "Tetsuzaemon IBA": {
+    "target": "Iba Tetsuzaemon",
+    "domain": "anime"
+  },
+  "Tetuzaemon": {
+    "target": "Tetsuzaemon",
+    "domain": "anime"
+  },
+  "Goro's pen": {
+    "target": "chuồng của Goro",
+    "domain": "novel"
+  },
+  "to his pen": {
+    "target": "về lại chuồng",
+    "domain": "novel"
+  },
+  "next to that pen": {
+    "target": "bên cạnh chiếc chuồng đó",
+    "domain": "novel"
+  },
+  "in his pen": {
+    "target": "trong chuồng",
+    "domain": "novel"
+  },
+  "pricked up his ears": {
+    "target": "vểnh tai lên nghe",
+    "domain": "novel"
+  },
+  "pricked up its ears": {
+    "target": "vểnh tai lên nghe",
+    "domain": "novel"
+  },
+  "wagged his tail eagerly": {
+    "target": "hớn hở vẫy đuôi",
+    "domain": "novel"
+  },
+  "wagged his tail": {
+    "target": "vẫy đuôi",
+    "domain": "novel"
+  },
+  "wagged its tail": {
+    "target": "vẫy đuôi",
+    "domain": "novel"
+  },
+  "white fur coat": {
+    "target": "bộ lông trắng muốt",
+    "domain": "novel"
+  },
+  "sprawled out by IBA's feet": {
+    "target": "nằm sóng soài dưới chân Iba",
+    "domain": "novel"
+  },
+  "sprawled out by Iba's feet": {
+    "target": "nằm sóng soài dưới chân Iba",
+    "domain": "novel"
+  },
+  "sprawled out": {
+    "target": "nằm sóng soài",
+    "domain": "novel"
+  },
+  "sprawled on his stomach": {
+    "target": "nằm sóng soài úp bụng",
+    "domain": "novel"
+  },
+  "swayed in the gentle breeze": {
+    "target": "lay nhẹ trong làn gió mát",
+    "domain": "novel"
+  },
+  "swaying in the gentle breeze": {
+    "target": "lay nhẹ trong làn gió mát",
+    "domain": "novel"
+  },
+  "swaying in the breeze": {
+    "target": "lay nhẹ trong gió",
+    "domain": "novel"
+  },
+  "waiting time": {
+    "target": "thời gian chờ đợi",
+    "domain": "novel"
+  },
+  "waiting times": {
+    "target": "thời gian chờ đợi",
+    "domain": "novel"
+  },
+  "bundle of reports": {
+    "target": "xấp báo cáo",
+    "domain": "novel"
+  },
+  "document's container": {
+    "target": "hộp tài liệu",
+    "domain": "novel"
+  },
+  "half its original amount": {
+    "target": "một nửa xấp giấy",
+    "domain": "novel"
+  },
+  "sprinting into a tumble": {
+    "target": "chạy nhanh rồi ngã nhào",
+    "domain": "novel"
+  },
+  "student's hakama": {
+    "target": "trang phục hakama học viên",
+    "domain": "novel"
+  },
+  "werewolves": {
+    "target": "người sói",
+    "domain": "novel"
+  },
+  "Shôma": {
+    "target": "Shoma",
+    "domain": "anime"
+  },
+  "Urui": {
+    "target": "Urui",
+    "domain": "anime"
   }
 }

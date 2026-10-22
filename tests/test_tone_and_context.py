@@ -60,3 +60,55 @@ def test_hybrid_translator_full_context_flow():
     res3 = tr.translate(s3, source_lang="en", target_lang="vi")
     assert "Cục Quản lý Nhân sự" in res3
     assert "Tịnh Linh Đình" in res3
+
+
+def test_split_sentences_function():
+    """Verify sentence boundary segmentation splits correctly without breaking dialogue tags or list prefixes."""
+    from src.core.translator import split_sentences
+
+    # Multi-sentence paragraph
+    sents = split_sentences("Renji-sama... unavoidable. Because there is no way...")
+    assert len(sents) == 2
+    assert sents[0] == "Renji-sama... unavoidable."
+    assert sents[1] == "Because there is no way..."
+
+    # Dialogue with speech tag (must not split dialogue tag)
+    dial = split_sentences('"What is this?" he asked. "I do not know."')
+    assert len(dial) == 2
+    assert dial[0] == '"What is this?" he asked.'
+    assert dial[1] == '"I do not know."'
+
+    # Numbered list item (must not split prefix)
+    num = split_sentences("1. SodoUseCaseTongq")
+    assert len(num) == 1
+    assert num[0] == "1. SodoUseCaseTongq"
+
+    # Honorific abbreviations
+    abbr = split_sentences("Dr. Smith went to the hospital. He was on duty.")
+    assert len(abbr) == 2
+    assert abbr[0] == "Dr. Smith went to the hospital."
+
+
+def test_multisentence_translation_preservation():
+    """Verify that multi-sentence input translates both sentences and preserves subsequent sentences."""
+    tr = HybridTranslator()
+    text = "Renji-sama... unavoidable. Because there is no way to do this quickly."
+    res = tr.translate(text, source_lang="en", target_lang="vi")
+    # Both sentences must be present in the translation
+    assert "Renji-sama" in res
+    assert "không thể tránh khỏi" in res or "không thể" in res
+    # Second sentence must not be omitted!
+    assert "bởi vì" in res.lower() or "vì" in res.lower() or "không có cách" in res.lower()
+
+
+def test_novel_terms_and_kennel_smoothing():
+    """Verify Bleach novel terms: Goro's pen -> chuồng, wagged tail, pricked up ears."""
+    tp = ToneProcessor()
+
+    s1 = tp.process("Iba trở về cây viết của Goro với một cái bút bên cạnh cây bút.")
+    assert "chuồng của Goro" in s1
+    assert "bên cạnh chiếc chuồng" in s1
+
+    s2 = tp.process("Con chó đâm vào tai của mình và lắc đuôi một cách vui vẻ.")
+    assert "vểnh tai lên nghe" in s2
+    assert "hớn hở vẫy đuôi" in s2

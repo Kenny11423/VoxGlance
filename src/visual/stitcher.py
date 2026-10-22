@@ -18,7 +18,7 @@ class SmartTextStitcher:
 
     def __init__(
         self,
-        line_height_multiplier: float = 0.60,
+        line_height_multiplier: float = 0.85,
         horizontal_overlap_threshold: float = 0.35,
         max_column_drift: int = 50,
     ):
