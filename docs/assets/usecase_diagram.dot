@@ -1,0 +1,81 @@
+
+    digraph UseCaseDiagram {
+        graph [rankdir=LR, nodesep=0.35, ranksep=0.7, bgcolor="transparent"];
+        node [fontname="Arial", fontsize=10];
+        edge [fontname="Arial", fontsize=9, color="#475569"];
+
+        // Actors
+        node [shape=box, style="filled,rounded", penwidth=1.5];
+        User [label="<<Actor>>\nNgười dùng cuối\n(End-User)", fillcolor="#DBEAFE", color="#1D4ED8", fontcolor="#1E3A8A"];
+        OS_Display [label="<<Actor>>\nDisplay Server\n(Wayland / X11)", fillcolor="#FEF3C7", color="#D97706", fontcolor="#92400E"];
+        OS_Audio [label="<<Actor>>\nAudio Subsystem\n(PipeWire / Pulse)", fillcolor="#FEF3C7", color="#D97706", fontcolor="#92400E"];
+        GPU_HW [label="<<Actor>>\nGPU & Driver\n(CUDA / NVML)", fillcolor="#DCFCE7", color="#16A34A", fontcolor="#166534"];
+        Cloud_MT [label="<<Actor>>\nCloud MT API\n(Google / DeepL)", fillcolor="#F3E8FF", color="#9333EA", fontcolor="#6B21A8"];
+
+        // System Boundary
+        subgraph cluster_System {
+            label = "HỆ THỐNG DỊCH THUẬT ĐA PHƯƠNG THỨC THỜI GIAN THỰC";
+            fontname = "Arial Bold";
+            fontsize = 12;
+            fontcolor = "#1E293B";
+            style = "filled,rounded";
+            fillcolor = "#F8FAFC";
+            color = "#94A3B8";
+            penwidth = 1.5;
+
+            node [shape=ellipse, style="filled", fillcolor="#FFFFFF", color="#0284C7", penwidth=1.2, fontcolor="#0F172A", margin="0.1,0.05"];
+
+            // Primary Use Cases
+            UC_Visual [label="UC-01: Dịch màn hình tại chỗ\n(In-Place Visual Translation)", penwidth=2, color="#0369A1", fillcolor="#E0F2FE"];
+            UC_Audio [label="UC-03: Dịch phụ đề âm thanh\n(Live Audio Subtitle)", penwidth=2, color="#0369A1", fillcolor="#E0F2FE"];
+            UC_Snap [label="UC-04: Dịch tức thì (F9)"];
+            UC_ROI [label="UC-05: Kéo chọn vùng (R)"];
+            UC_Toggle [label="UC-06: Ẩn/Hiện lớp phủ (Esc)"];
+            UC_Guard [label="UC-07: Giám sát VRAM & OOM"];
+
+            // Sub-Use Cases
+            UC_ClearScroll [label="UC-02: Tự động xóa khi cuộn\n(Clear-on-Scroll)"];
+            UC_CapScreen [label="Chụp khung hình"];
+            UC_OCR [label="Nhận diện & Lọc rác OCR"];
+            UC_Aesthetic [label="Lấy màu nền & Co giãn font"];
+            UC_CapAudio [label="Thu âm thanh Mic/Loopback"];
+            UC_ASR [label="Lọc VAD & Nhận dạng Whisper"];
+            UC_SubRoll [label="Hiển thị phụ đề 2 dòng & Tránh đè"];
+            UC_Translate [label="Dịch đa ngôn ngữ CTranslate2 GPU"];
+            UC_Cloud [label="Dịch dự phòng Cloud API"];
+        }
+
+        // User Associations
+        User -> UC_Visual [penwidth=1.5, color="#1D4ED8"];
+        User -> UC_Audio [penwidth=1.5, color="#1D4ED8"];
+        User -> UC_Snap [penwidth=1.2, color="#1D4ED8"];
+        User -> UC_ROI [penwidth=1.2, color="#1D4ED8"];
+        User -> UC_Toggle [penwidth=1.2, color="#1D4ED8"];
+
+        // System Actor Associations
+        UC_CapScreen -> OS_Display [penwidth=1.2, color="#D97706", dir=both];
+        UC_ROI -> OS_Display [penwidth=1.2, color="#D97706", dir=both];
+        UC_CapAudio -> OS_Audio [penwidth=1.2, color="#D97706", dir=both];
+        UC_Guard -> GPU_HW [penwidth=1.2, color="#16A34A", dir=both];
+        UC_Translate -> GPU_HW [penwidth=1.2, color="#16A34A"];
+        UC_ASR -> GPU_HW [penwidth=1.2, color="#16A34A"];
+        UC_Cloud -> Cloud_MT [penwidth=1.2, color="#9333EA", dir=both];
+
+        // Include & Extend Relationships
+        edge [style=dashed, penwidth=1.0, color="#64748B", arrowhead=open];
+        UC_Visual -> UC_CapScreen [label="<<include>>"];
+        UC_Visual -> UC_OCR [label="<<include>>"];
+        UC_Visual -> UC_Aesthetic [label="<<include>>"];
+        UC_Visual -> UC_Translate [label="<<include>>"];
+
+        UC_Audio -> UC_CapAudio [label="<<include>>"];
+        UC_Audio -> UC_ASR [label="<<include>>"];
+        UC_Audio -> UC_Translate [label="<<include>>"];
+        UC_Audio -> UC_SubRoll [label="<<include>>"];
+
+        UC_ClearScroll -> UC_Visual [label="<<extend>>"];
+        UC_Snap -> UC_Visual [label="<<extend>>"];
+        UC_ROI -> UC_Visual [label="<<extend>>"];
+        UC_Cloud -> UC_Translate [label="<<extend\n(fallback)>>"];
+    }
+    

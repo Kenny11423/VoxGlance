@@ -1,0 +1,61 @@
+
+    digraph FDD {
+        graph [rankdir=TB, splines=ortho, nodesep=0.4, ranksep=0.6, bgcolor="transparent"];
+        node [fontname="Arial", fontsize=10, shape=box, style="filled,rounded", margin="0.15,0.1"];
+        edge [color="#475569", penwidth=1.2, arrowhead=none];
+
+        // Root
+        ROOT [label="HỆ THỐNG DỊCH THUẬT ĐA PHƯƠNG THỨC THỜI GIAN THỰC\n(Real-Time In-Place Multimodal Translator)", 
+              fillcolor="#1E3A8A", fontcolor="#FFFFFF", fontsize=12, penwidth=2, color="#172554"];
+
+        // Level 1 Subsystems
+        F1 [label="1.0 QUẢN TRỊ & ĐIỀU PHỐI HỆ THỐNG", fillcolor="#2563EB", fontcolor="#FFFFFF", fontsize=11, penwidth=1.5, color="#1D4ED8"];
+        F2 [label="2.0 DỊCH THUẬT TRỰC QUAN MÀN HÌNH", fillcolor="#2563EB", fontcolor="#FFFFFF", fontsize=11, penwidth=1.5, color="#1D4ED8"];
+        F3 [label="3.0 DỊCH THUẬT ÂM THANH TRỰC TIẾP", fillcolor="#2563EB", fontcolor="#FFFFFF", fontsize=11, penwidth=1.5, color="#1D4ED8"];
+        F4 [label="4.0 ĐỘNG CƠ DỊCH THUẬT ĐA NGÔN NGỮ", fillcolor="#2563EB", fontcolor="#FFFFFF", fontsize=11, penwidth=1.5, color="#1D4ED8"];
+        F5 [label="5.0 GIAO DIỆN & LỚP PHỦ XUYÊN THẤU", fillcolor="#2563EB", fontcolor="#FFFFFF", fontsize=11, penwidth=1.5, color="#1D4ED8"];
+
+        ROOT -> F1;
+        ROOT -> F2;
+        ROOT -> F3;
+        ROOT -> F4;
+        ROOT -> F5;
+
+        // Level 2 - F1
+        node [fillcolor="#EFF6FF", fontcolor="#0F172A", color="#93C5FD", penwidth=1];
+        F11 [label="1.1 Khởi tạo cấu hình (YAML/CLI)"];
+        F12 [label="1.2 Quản trị VRAM (OOM Guard Buffer)"];
+        F13 [label="1.3 Quản lý bộ đệm thuật ngữ (LRU Cache)"];
+        F14 [label="1.4 Điều phối luồng Orchestrator Pipeline"];
+        F1 -> F11; F1 -> F12; F1 -> F13; F1 -> F14;
+
+        // Level 2 - F2
+        F21 [label="2.1 Chụp màn hình (Full Screen / ROI Slurp)"];
+        F22 [label="2.2 Phát hiện cuộn (Clear-on-Scroll 3.5%)"];
+        F23 [label="2.3 Nhận dạng chữ (RapidOCR ONNX Runtime)"];
+        F24 [label="2.4 Lọc nhiễu ký tự & Loại bỏ chữ ma"];
+        F25 [label="2.5 Ghép dòng thông minh (Sentence Stitcher)"];
+        F26 [label="2.6 Hòa sắc & Co giãn font gốc (Aesthetic)"];
+        F2 -> F21; F2 -> F22; F2 -> F23; F2 -> F24; F2 -> F25; F2 -> F26;
+
+        // Level 2 - F3
+        F31 [label="3.1 Thu âm Mic & Desktop Loopback"];
+        F32 [label="3.2 Lọc hoạt tính giọng nói (Silero VAD)"];
+        F33 [label="3.3 Nhận dạng trực tiếp (Faster-Whisper)"];
+        F34 [label="3.4 Xử lý phụ đề 2 dòng (2-Line Roll-Up)"];
+        F3 -> F31; F3 -> F32; F3 -> F33; F3 -> F34;
+
+        // Level 2 - F4
+        F41 [label="4.1 Dịch GPU song song (CTranslate2 <40ms)"];
+        F42 [label="4.2 Dịch đám mây dự phòng (Cloud Fallback)"];
+        F43 [label="4.3 Quản lý từ điển & Thuật ngữ riêng"];
+        F4 -> F41; F4 -> F42; F4 -> F43;
+
+        // Level 2 - F5
+        F51 [label="5.1 Lớp phủ xuyên thấu chuột 60 FPS"];
+        F52 [label="5.2 Chống đè/va chạm (Collision Resolver)"];
+        F53 [label="5.3 Thanh điều khiển nổi (Floating Toolbar)"];
+        F54 [label="5.4 Quản lý phím tắt nhanh (F9, Esc, R)"];
+        F5 -> F51; F5 -> F52; F5 -> F53; F5 -> F54;
+    }
+    
